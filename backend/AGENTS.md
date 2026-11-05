@@ -4,7 +4,9 @@
 
 This is the Go module `uptime-app/backend`. The entry point is `cmd/api/main.go`; place future private application packages in `internal/`.
 
-The entry point validates configuration, opens PostgreSQL, applies embedded Goose SQL migrations, then starts `net/http`. `internal/config/` owns settings, `internal/store/` owns GORM models and transactions, `internal/auth/` owns passwords/JWT/sessions, and `internal/httpapi/` owns routes, cookie, CORS and IP limits. Monitoring and frontend integration are not implemented.
+The entry point validates configuration, opens PostgreSQL, applies embedded Goose SQL migrations, wires module handlers, then starts `net/http`. `internal/config/` owns settings, `internal/store/` owns GORM models and transactions, `internal/auth/` owns passwords/JWT/sessions and auth HTTP handlers (including refresh cookies and auth error mapping), and `internal/health/` owns the database readiness handler. `internal/httpapi/` only assembles routes and applies shared HTTP guards, CORS and IP limits. `internal/httpx/` provides shared strict JSON decoding and response helpers, without module dependencies. The Next.js frontend calls auth endpoints with credentials and Bearer access tokens. Monitoring is not implemented.
+
+Keep each module's controllers in its own `handler.go` alongside its service code; register them in `internal/httpapi/` and construct dependencies in `cmd/api/`. Do not put module request handling, service calls or database readiness queries back in `httpapi`, and do not import `httpapi` from modules. Keep cookie tests alongside the auth handler; route/guard tests and cross-module API integration tests stay in `httpapi`.
 
 ## Development Commands
 
