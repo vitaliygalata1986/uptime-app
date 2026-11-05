@@ -1,0 +1,6 @@
+.env
+.env.*
+!.env.example
+backend/bin/
+*.cookies
+.vscode/
