@@ -1,3 +1,7 @@
+import { apiRequest, ApiError } from "../api";
+
+export { ApiError, fileURL as avatarURL } from "../api";
+
 export interface User {
   id: number;
   email: string;
@@ -13,40 +17,8 @@ export interface AuthResult {
   expires_in: number;
 }
 
-export class ApiError extends Error {
-  constructor(public status: number, public code: string) {
-    super(code);
-  }
-}
-
-const baseURL = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:8081").replace(/\/$/, "");
-
-export function avatarURL(path: string): string {
-  return `${baseURL}${path}`;
-}
-
-export async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
-  let response: Response;
-  try {
-    response = await fetch(`${baseURL}/api/auth/${path}`, {
-      ...options,
-      credentials: "include",
-      cache: "no-store",
-      signal: AbortSignal.timeout(15000),
-    });
-  } catch {
-    throw new ApiError(0, "network_error");
-  }
-  if (!response.ok) {
-    const body = await response.json().catch(() => null);
-    throw new ApiError(response.status, body?.error?.code || "request_failed");
-  }
-  if (response.status === 204) return undefined as T;
-  try {
-    return await response.json() as T;
-  } catch {
-    throw new ApiError(0, "invalid_response");
-  }
+export function request<T>(path: string, options: RequestInit = {}): Promise<T> {
+  return apiRequest<T>(`auth/${path}`, options);
 }
 
 export function post<T>(path: string, body: object = {}) {
@@ -59,6 +31,8 @@ export function post<T>(path: string, body: object = {}) {
 
 export function errorMessage(error: unknown): string {
   if (!(error instanceof ApiError)) return "Не удалось выполнить запрос. Попробуйте ещё раз.";
+  if (error.code === "file_too_large") return "Файл должен быть не больше 20 МБ.";
+  if (error.code === "invalid_upload") return "Выберите один файл для загрузки.";
   if (error.code === "avatar_too_large") return "Изображение должно быть не больше 5 МБ.";
   if (error.code === "invalid_avatar") return "Выберите корректное изображение JPEG или PNG: до 4096 пикселей по стороне и до 16 мегапикселей.";
   if (error.code === "invalid_name") return "Имя должно содержать от 1 до 100 символов без управляющих символов.";

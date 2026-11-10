@@ -19,6 +19,7 @@ type Config struct {
 	AllowedOrigins []string
 	LocalHTTP      bool
 	AvatarDir      string
+	UploadDir      string
 }
 
 func Load() (Config, error) { return load(os.Getenv) }
@@ -27,7 +28,10 @@ func load(get func(string) string) (Config, error) {
 	c := Config{
 		HTTPAddr: get("HTTP_ADDR"), DatabaseURL: get("DATABASE_URL"),
 		JWTIssuer: get("JWT_ISSUER"), JWTAudience: get("JWT_AUDIENCE"),
-		AvatarDir: get("AVATAR_DIR"),
+		AvatarDir: get("AVATAR_DIR"), UploadDir: get("UPLOAD_DIR"),
+	}
+	if c.UploadDir == "" {
+		c.UploadDir = "uploads/files"
 	}
 	if c.AvatarDir == "" {
 		c.AvatarDir = "uploads/avatars"

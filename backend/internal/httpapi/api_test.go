@@ -11,10 +11,11 @@ import (
 
 	"uptime-app/backend/internal/auth"
 	"uptime-app/backend/internal/config"
+	"uptime-app/backend/internal/upload"
 )
 
 func localAPI() *API {
-	return New(auth.NewHandler(&auth.Service{}, false, nil), http.NotFoundHandler(), config.Config{LocalHTTP: true, AllowedOrigins: []string{"http://localhost:3000"}})
+	return New(auth.NewHandler(&auth.Service{}, false, nil), http.NotFoundHandler(), upload.NewHandler(nil), config.Config{LocalHTTP: true, AllowedOrigins: []string{"http://localhost:3000"}})
 }
 
 func TestRequestGuards(t *testing.T) {
@@ -85,14 +86,16 @@ func TestPreflight(t *testing.T) {
 
 func TestRouteMethods(t *testing.T) {
 	for path, method := range map[string]string{
-		"/api/auth/register": http.MethodPost,
-		"/api/auth/login":    http.MethodPost,
-		"/api/auth/refresh":  http.MethodPost,
-		"/api/auth/logout":   http.MethodPost,
-		"/api/auth/me":       http.MethodGet,
-		"/api/auth/profile":  http.MethodPatch,
-		"/api/auth/avatar":   http.MethodPost,
-		"/healthz":           http.MethodGet,
+		"/api/auth/register":        http.MethodPost,
+		"/api/auth/login":           http.MethodPost,
+		"/api/auth/refresh":         http.MethodPost,
+		"/api/auth/logout":          http.MethodPost,
+		"/api/auth/me":              http.MethodGet,
+		"/api/auth/profile":         http.MethodPatch,
+		"/api/auth/avatar":          http.MethodPost,
+		"/api/uploads":              http.MethodPost,
+		"/uploads/files/not-a-file": http.MethodGet,
+		"/healthz":                  http.MethodGet,
 	} {
 		t.Run(path, func(t *testing.T) {
 			a := localAPI()

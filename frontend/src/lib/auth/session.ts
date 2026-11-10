@@ -1,6 +1,7 @@
 "use client";
 
-import { ApiError, errorMessage, post, request, type AuthResult, type User } from "./api";
+import { apiRequest } from "../api";
+import { ApiError, errorMessage, post, type AuthResult, type User } from "./api";
 
 type State =
   | { status: "checking" | "anonymous"; user: null; error: null }
@@ -55,7 +56,11 @@ function refresh(): Promise<void> {
   return flight;
 }
 
-export async function authorizedRequest<T>(path: string, options: RequestInit = {}): Promise<T> {
+export function authorizedRequest<T>(path: string, options: RequestInit = {}): Promise<T> {
+  return authorizedAPIRequest<T>(`auth/${path}`, options);
+}
+
+export async function authorizedAPIRequest<T>(path: string, options: RequestInit = {}): Promise<T> {
   const revision = generation;
   if (!access || access.expires <= Date.now()) await refresh();
   if (revision !== generation || !access) throw new ApiError(401, "session_changed");
@@ -63,14 +68,14 @@ export async function authorizedRequest<T>(path: string, options: RequestInit = 
   const headers = new Headers(options.headers);
   headers.set("Authorization", `Bearer ${token}`);
   try {
-    return await request<T>(path, { ...options, headers });
+    return await apiRequest<T>(path, { ...options, headers });
   } catch (error) {
     if (!(error instanceof ApiError) || error.status !== 401 || revision !== generation) throw error;
     // Другой запрос мог уже обновить токен, пока этот ожидал ответ.
     if (access?.token === token) await refresh();
     if (revision !== generation || !access) throw new ApiError(401, "session_changed");
     headers.set("Authorization", `Bearer ${access.token}`);
-    return request<T>(path, { ...options, headers });
+    return apiRequest<T>(path, { ...options, headers });
   }
 }
 

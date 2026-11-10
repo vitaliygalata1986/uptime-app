@@ -2,7 +2,7 @@
 
 ## Project Structure
 
-This project uses Next.js 16 App Router, React, and strict TypeScript. Routes and layouts live in `src/app/`; `@/*` resolves to `src/*`. `/login`, `/register` and `/dashboard` provide authentication. `/dashboard/profile` displays the current user and edits their name via `PATCH /api/auth/profile` and avatar via multipart `POST /api/auth/avatar` (optional name saved together); it uses the dashboard layout's auth guard. `src/components/auth/` owns UI and the provider; `src/lib/auth/` owns typed requests and the in-memory session. Avatars use the API origin with `next/image` unoptimized; a local blob preview is uploaded only on save. No dedicated test framework is configured.
+This project uses Next.js 16 App Router, React, and strict TypeScript. Routes and layouts live in `src/app/`; `@/*` resolves to `src/*`. `/login`, `/register` and `/dashboard` provide authentication. `/dashboard/profile` displays the current user and edits their name via `PATCH /api/auth/profile` and avatar via multipart `POST /api/auth/avatar` (optional name saved together); it uses the dashboard layout's auth guard. `src/components/auth/` owns UI and the provider; `src/lib/auth/` owns typed requests and the in-memory session. Avatars use the API origin with `next/image` unoptimized; a local blob preview is uploaded only on save. `src/lib/api.ts` provides shared HTTP transport and file URLs; `src/lib/uploads.ts` exports `uploadFile(file)` for any file type up to 20 MiB and returns URL/name/size/content type. It uses the same in-memory access token and refresh serialization through `authorizedAPIRequest`. No dedicated test framework is configured.
 
 ## Development Commands
 

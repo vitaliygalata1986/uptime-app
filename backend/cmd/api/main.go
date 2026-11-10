@@ -16,6 +16,7 @@ import (
 	"uptime-app/backend/internal/health"
 	"uptime-app/backend/internal/httpapi"
 	"uptime-app/backend/internal/store"
+	"uptime-app/backend/internal/upload"
 )
 
 func main() {
@@ -49,9 +50,14 @@ func run() error {
 	if err != nil {
 		return fmt.Errorf("prepare avatar storage: %w", err)
 	}
+	files, err := upload.NewStorage(cfg.UploadDir, "/uploads/files/")
+	if err != nil {
+		return fmt.Errorf("prepare upload storage: %w", err)
+	}
+	uploadHandler := upload.NewHandler(files)
 	authHandler := auth.NewHandler(service, !cfg.LocalHTTP, avatars)
 	healthHandler := health.NewHandler(repository.SQL)
-	server := &http.Server{Addr: cfg.HTTPAddr, Handler: httpapi.New(authHandler, healthHandler, cfg),
+	server := &http.Server{Addr: cfg.HTTPAddr, Handler: httpapi.New(authHandler, healthHandler, uploadHandler, cfg),
 		ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 10 * time.Second,
 		WriteTimeout: 15 * time.Second, IdleTimeout: 60 * time.Second, MaxHeaderBytes: 16 * 1024}
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)

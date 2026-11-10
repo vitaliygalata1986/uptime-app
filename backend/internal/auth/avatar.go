@@ -6,27 +6,24 @@ import (
 	"image"
 	"image/jpeg"
 	"image/png"
-	"log/slog"
-	"os"
-	"path/filepath"
-	"regexp"
-	"strings"
+
+	"uptime-app/backend/internal/upload"
 )
 
 const MaxAvatarBytes = 5 << 20
 const avatarPrefix = "/uploads/avatars/"
 
-var avatarFilename = regexp.MustCompile(`^[A-Za-z0-9_-]{43}\.(jpg|png)$`)
 var errInvalidAvatar = errors.New("invalid avatar image")
 
-// AvatarStorage stores only decoded and re-encoded JPEG/PNG files, never client filenames.
-type AvatarStorage struct{ dir string }
+// AvatarStorage validates images before writing them through shared file storage.
+type AvatarStorage struct{ files *upload.Storage }
 
 func NewAvatarStorage(dir string) (*AvatarStorage, error) {
-	if err := os.MkdirAll(dir, 0700); err != nil {
+	files, err := upload.NewStorage(dir, avatarPrefix)
+	if err != nil {
 		return nil, err
 	}
-	return &AvatarStorage{dir: dir}, nil
+	return &AvatarStorage{files: files}, nil
 }
 
 func (s *AvatarStorage) save(data []byte) (string, error) {
@@ -38,44 +35,20 @@ func (s *AvatarStorage) save(data []byte) (string, error) {
 	if err != nil {
 		return "", errInvalidAvatar
 	}
-	token, err := RandomToken()
-	if err != nil {
-		return "", err
-	}
 	extension := ".png"
+	var encoded bytes.Buffer
 	if format == "jpeg" {
 		extension = ".jpg"
-	}
-	name := token + extension
-	file, err := os.OpenFile(filepath.Join(s.dir, name), os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0600)
-	if err != nil {
-		return "", err
-	}
-	if format == "jpeg" {
-		err = jpeg.Encode(file, img, &jpeg.Options{Quality: 90})
+		err = jpeg.Encode(&encoded, img, &jpeg.Options{Quality: 90})
 	} else {
-		err = png.Encode(file, img)
-	}
-	closeErr := file.Close()
-	if err == nil {
-		err = closeErr
+		err = png.Encode(&encoded, img)
 	}
 	if err != nil {
-		_ = os.Remove(filepath.Join(s.dir, name))
 		return "", err
 	}
-	return avatarPrefix + name, nil
+	return s.files.Save(&encoded, extension)
 }
 
 func (s *AvatarStorage) remove(url string) {
-	if !strings.HasPrefix(url, avatarPrefix) {
-		return
-	}
-	name := strings.TrimPrefix(url, avatarPrefix)
-	if !avatarFilename.MatchString(name) {
-		return
-	}
-	if err := os.Remove(filepath.Join(s.dir, name)); err != nil && !errors.Is(err, os.ErrNotExist) {
-		slog.Error("remove avatar failed", "error", err)
-	}
+	s.files.Remove(url)
 }

@@ -12,6 +12,7 @@ import (
 	"uptime-app/backend/internal/auth"
 	"uptime-app/backend/internal/config"
 	"uptime-app/backend/internal/httpx"
+	"uptime-app/backend/internal/upload"
 )
 
 type route struct {
@@ -26,9 +27,10 @@ type API struct {
 	limiter *limiter
 	now     func() time.Time
 	avatars http.HandlerFunc
+	uploads http.HandlerFunc
 }
 
-func New(authHandler *auth.Handler, healthHandler http.Handler, cfg config.Config) *API {
+func New(authHandler *auth.Handler, healthHandler http.Handler, uploadHandler *upload.Handler, cfg config.Config) *API {
 	a := &API{
 		routes: map[string]route{
 			"/api/auth/register": {http.MethodPost, authHandler.Register, 5},
@@ -38,9 +40,11 @@ func New(authHandler *auth.Handler, healthHandler http.Handler, cfg config.Confi
 			"/api/auth/me":       {http.MethodGet, authHandler.Me, 0},
 			"/api/auth/profile":  {http.MethodPatch, authHandler.UpdateProfile, 0},
 			"/api/auth/avatar":   {http.MethodPost, authHandler.UploadAvatar, 10},
+			"/api/uploads":       {http.MethodPost, authHandler.RequireUser(uploadHandler.Upload), 10},
 			"/healthz":           {http.MethodGet, healthHandler.ServeHTTP, 0},
 		},
 		avatars: authHandler.AvatarFile,
+		uploads: uploadHandler.File,
 		origins: make(map[string]bool), limiter: newLimiter(), now: time.Now,
 	}
 	for _, origin := range cfg.AllowedOrigins {
@@ -62,15 +66,18 @@ func (a *API) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Access-Control-Allow-Origin", origin)
 		w.Header().Set("Access-Control-Allow-Credentials", "true")
 	}
-	route, ok := a.routes[r.URL.Path]
+	matched, ok := a.routes[r.URL.Path]
 	if strings.HasPrefix(r.URL.Path, "/uploads/avatars/") {
-		route, ok = routeForAvatar(a.avatars), true
+		matched, ok = route{http.MethodGet, a.avatars, 0}, true
+	}
+	if strings.HasPrefix(r.URL.Path, "/uploads/files/") {
+		matched, ok = route{http.MethodGet, a.uploads, 0}, true
 	}
 	if !ok {
 		httpx.WriteError(w, http.StatusNotFound, "not_found", "Route not found")
 		return
 	}
-	method := route.method
+	method := matched.method
 	if r.Method == http.MethodOptions {
 		a.preflight(w, r, method)
 		return
@@ -87,14 +94,14 @@ func (a *API) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 		contentType, _, err := mime.ParseMediaType(r.Header.Get("Content-Type"))
 		expectedType := "application/json"
-		if r.URL.Path == "/api/auth/avatar" {
+		if r.URL.Path == "/api/auth/avatar" || r.URL.Path == "/api/uploads" {
 			expectedType = "multipart/form-data"
 		}
 		if err != nil || contentType != expectedType {
 			httpx.WriteError(w, http.StatusBadRequest, "invalid_request", "Content-Type must be "+expectedType)
 			return
 		}
-		if limit := route.limit; limit != 0 {
+		if limit := matched.limit; limit != 0 {
 			if ok, retry := a.limiter.allow(r.URL.Path+":"+remoteIP(r.RemoteAddr), limit, a.now()); !ok {
 				w.Header().Set("Retry-After", strconv.Itoa(int(math.Ceil(retry.Seconds()))))
 				httpx.WriteError(w, http.StatusTooManyRequests, "rate_limited", "Too many requests")
@@ -102,7 +109,7 @@ func (a *API) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 	}
-	route.handler(w, r)
+	matched.handler(w, r)
 }
 
 func (a *API) preflight(w http.ResponseWriter, r *http.Request, method string) {
@@ -134,5 +141,3 @@ func remoteIP(addr string) string {
 	}
 	return "unknown"
 }
-
-func routeForAvatar(handler http.HandlerFunc) route { return route{http.MethodGet, handler, 0} }

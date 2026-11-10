@@ -6,8 +6,6 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
-	"os"
-	"path/filepath"
 	"strings"
 	"time"
 
@@ -163,30 +161,11 @@ func (h *Handler) fail(w http.ResponseWriter, err error) {
 }
 
 func (h *Handler) AvatarFile(w http.ResponseWriter, r *http.Request) {
-	name := strings.TrimPrefix(r.URL.Path, avatarPrefix)
-	if h.avatars == nil || !strings.HasPrefix(r.URL.Path, avatarPrefix) || !avatarFilename.MatchString(name) {
+	if h.avatars == nil {
 		http.NotFound(w, r)
 		return
 	}
-	file, err := os.Open(filepath.Join(h.avatars.dir, name))
-	if err != nil {
-		http.NotFound(w, r)
-		return
-	}
-	defer file.Close()
-	info, err := file.Stat()
-	if err != nil || !info.Mode().IsRegular() {
-		http.NotFound(w, r)
-		return
-	}
-	w.Header().Set("Cache-Control", "public, max-age=31536000, immutable")
-	w.Header().Set("Cross-Origin-Resource-Policy", "cross-origin")
-	if strings.HasSuffix(name, ".png") {
-		w.Header().Set("Content-Type", "image/png")
-	} else {
-		w.Header().Set("Content-Type", "image/jpeg")
-	}
-	http.ServeContent(w, r, name, info.ModTime(), file)
+	h.avatars.files.ServeHTTP(w, r)
 }
 
 // UploadAvatar saves the image and optional name together only when the user submits the profile.
@@ -270,4 +249,20 @@ func (h *Handler) UploadAvatar(w http.ResponseWriter, r *http.Request) {
 	}
 	h.avatars.remove(previous)
 	httpx.WriteJSON(w, http.StatusOK, publicUser(updated))
+}
+
+// RequireUser checks the access token and current account for other feature routes.
+func (h *Handler) RequireUser(next http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		parts := strings.Fields(r.Header.Get("Authorization"))
+		if len(parts) != 2 || !strings.EqualFold(parts[0], "Bearer") {
+			h.fail(w, store.ErrUnauthorized)
+			return
+		}
+		if _, err := h.service.Me(r.Context(), parts[1]); err != nil {
+			h.fail(w, err)
+			return
+		}
+		next(w, r)
+	}
 }

@@ -25,6 +25,7 @@ services:
       ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-http://localhost:3000}
       LOCAL_HTTP: ${LOCAL_HTTP:-false}
       AVATAR_DIR: /app/uploads/avatars
+      UPLOAD_DIR: /app/uploads/files
     volumes:
       - avatar_data:/app/uploads
     ports:
