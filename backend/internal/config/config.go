@@ -18,6 +18,7 @@ type Config struct {
 	JWTAudience    string
 	AllowedOrigins []string
 	LocalHTTP      bool
+	AvatarDir      string
 }
 
 func Load() (Config, error) { return load(os.Getenv) }
@@ -26,6 +27,10 @@ func load(get func(string) string) (Config, error) {
 	c := Config{
 		HTTPAddr: get("HTTP_ADDR"), DatabaseURL: get("DATABASE_URL"),
 		JWTIssuer: get("JWT_ISSUER"), JWTAudience: get("JWT_AUDIENCE"),
+		AvatarDir: get("AVATAR_DIR"),
+	}
+	if c.AvatarDir == "" {
+		c.AvatarDir = "uploads/avatars"
 	}
 	if c.HTTPAddr == "" {
 		c.HTTPAddr = ":8080"

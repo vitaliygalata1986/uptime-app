@@ -25,6 +25,7 @@ type User struct {
 	ID           uint64
 	Email        string
 	Name         string
+	AvatarURL    string
 	PasswordHash string
 	CreatedAt    time.Time
 }
@@ -204,4 +205,22 @@ func unauthorizedIfMissing(err error) error {
 		return ErrUnauthorized
 	}
 	return err
+}
+
+// UpdateUserAvatar serializes replacements so concurrent saves can safely remove the previous file.
+func (s *Store) UpdateUserAvatar(ctx context.Context, id uint64, url string, name *string) (User, string, error) {
+	var user User
+	var previous string
+	err := s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&user, id).Error; err != nil {
+			return unauthorizedIfMissing(err)
+		}
+		previous = user.AvatarURL
+		updates := map[string]interface{}{"avatar_url": url}
+		if name != nil {
+			updates["name"] = *name
+		}
+		return tx.Model(&user).Clauses(clause.Returning{}).Updates(updates).Error
+	})
+	return user, previous, err
 }

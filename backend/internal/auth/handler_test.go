@@ -10,7 +10,7 @@ import (
 func TestCookie(t *testing.T) {
 	now := time.Now().UTC().Truncate(time.Second)
 	for _, secure := range []bool{false, true} {
-		a := NewHandler(&Service{}, secure)
+		a := NewHandler(&Service{}, secure, nil)
 		a.now = func() time.Time { return now }
 		w := httptest.NewRecorder()
 		a.setCookie(w, "token", now.Add(2*time.Hour))

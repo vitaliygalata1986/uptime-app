@@ -19,6 +19,7 @@ type User struct {
 	ID        uint64    `json:"id"`
 	Email     string    `json:"email"`
 	Name      string    `json:"name"`
+	AvatarURL string    `json:"avatar_url"`
 	CreatedAt time.Time `json:"created_at"`
 }
 
@@ -170,7 +171,7 @@ func (s *Service) result(user store.User, refresh string, expires time.Time) (Re
 }
 
 func publicUser(user store.User) User {
-	return User{ID: user.ID, Email: user.Email, Name: user.Name, CreatedAt: user.CreatedAt}
+	return User{ID: user.ID, Email: user.Email, Name: user.Name, AvatarURL: user.AvatarURL, CreatedAt: user.CreatedAt}
 }
 
 func newSession(now time.Time, userID uint64) (store.AuthSession, store.RefreshToken, string, error) {

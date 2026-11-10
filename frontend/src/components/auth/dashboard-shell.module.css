@@ -58,18 +58,6 @@
   background: #f5f8f5;
 }
 
-.avatar {
-  display: grid;
-  place-items: center;
-  flex-shrink: 0;
-  width: 38px;
-  height: 38px;
-  border-radius: 50%;
-  background: #edf4ef;
-  color: var(--accent);
-  font-weight: 600;
-}
-
 .identity {
   display: grid;
   min-width: 0;

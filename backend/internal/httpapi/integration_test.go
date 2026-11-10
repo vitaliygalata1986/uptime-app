@@ -24,9 +24,10 @@ import (
 const testPassword = "  correct password with spaces  "
 
 type harness struct {
-	api   *API
-	db    *store.Store
-	clock *atomic.Int64
+	api       *API
+	db        *store.Store
+	clock     *atomic.Int64
+	avatarDir string
 }
 
 func integration(t *testing.T) *harness {
@@ -83,9 +84,14 @@ func integration(t *testing.T) *harness {
 		t.Fatal(err)
 	}
 	service.Now = now
-	api := New(auth.NewHandler(service, false), health.NewHandler(db.SQL), config.Config{LocalHTTP: true, AllowedOrigins: []string{"http://localhost:3000"}})
+	avatarDir := t.TempDir()
+	avatars, err := auth.NewAvatarStorage(avatarDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	api := New(auth.NewHandler(service, false, avatars), health.NewHandler(db.SQL), config.Config{LocalHTTP: true, AllowedOrigins: []string{"http://localhost:3000"}})
 	api.now = now
-	return &harness{api: api, db: db, clock: clock}
+	return &harness{api: api, db: db, clock: clock, avatarDir: avatarDir}
 }
 
 func (h *harness) do(method, route, body, refresh, access string) *httptest.ResponseRecorder {
@@ -262,7 +268,7 @@ func TestIntegrationLoginAndMe(t *testing.T) {
 	w := h.do("GET", "me", "", "", logged.AccessToken)
 	expect(t, w, 200)
 	var user map[string]any
-	if err := json.Unmarshal(w.Body.Bytes(), &user); err != nil || len(user) != 4 || user["email"] != "me@example.com" || user["name"] != "" {
+	if err := json.Unmarshal(w.Body.Bytes(), &user); err != nil || len(user) != 5 || user["email"] != "me@example.com" || user["name"] != "" || user["avatar_url"] != "" {
 		t.Fatalf("public user: %s", w.Body)
 	}
 	expect(t, h.do("GET", "me", "", "", ""), 401)

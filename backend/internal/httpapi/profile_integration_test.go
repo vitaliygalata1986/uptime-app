@@ -101,10 +101,10 @@ func TestIntegrationProfileMigrationPreservesUsers(t *testing.T) {
 		t.Fatal(err)
 	}
 	// Restore the original schema inside this test's isolated PostgreSQL schema.
-	if _, err := h.db.SQL.Exec("ALTER TABLE users DROP COLUMN name"); err != nil {
+	if _, err := h.db.SQL.Exec("ALTER TABLE users DROP COLUMN name, DROP COLUMN avatar_url"); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := h.db.SQL.Exec("DELETE FROM goose_db_version WHERE version_id = 2"); err != nil {
+	if _, err := h.db.SQL.Exec("DELETE FROM goose_db_version WHERE version_id >= 2"); err != nil {
 		t.Fatal(err)
 	}
 	if err := h.db.Migrate(context.Background()); err != nil {

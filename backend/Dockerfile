@@ -13,6 +13,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates
     && groupadd --gid 10001 api && useradd --uid 10001 --gid api --no-create-home api
 WORKDIR /app
 COPY --from=build /out/api ./api
+RUN mkdir -p /app/uploads/avatars && chown -R api:api /app/uploads
 USER 10001:10001
 EXPOSE 8080
 ENTRYPOINT ["/app/api"]

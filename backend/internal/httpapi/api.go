@@ -25,6 +25,7 @@ type API struct {
 	origins map[string]bool
 	limiter *limiter
 	now     func() time.Time
+	avatars http.HandlerFunc
 }
 
 func New(authHandler *auth.Handler, healthHandler http.Handler, cfg config.Config) *API {
@@ -36,8 +37,10 @@ func New(authHandler *auth.Handler, healthHandler http.Handler, cfg config.Confi
 			"/api/auth/logout":   {http.MethodPost, authHandler.Logout, 0},
 			"/api/auth/me":       {http.MethodGet, authHandler.Me, 0},
 			"/api/auth/profile":  {http.MethodPatch, authHandler.UpdateProfile, 0},
+			"/api/auth/avatar":   {http.MethodPost, authHandler.UploadAvatar, 10},
 			"/healthz":           {http.MethodGet, healthHandler.ServeHTTP, 0},
 		},
+		avatars: authHandler.AvatarFile,
 		origins: make(map[string]bool), limiter: newLimiter(), now: time.Now,
 	}
 	for _, origin := range cfg.AllowedOrigins {
@@ -60,6 +63,9 @@ func (a *API) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Access-Control-Allow-Credentials", "true")
 	}
 	route, ok := a.routes[r.URL.Path]
+	if strings.HasPrefix(r.URL.Path, "/uploads/avatars/") {
+		route, ok = routeForAvatar(a.avatars), true
+	}
 	if !ok {
 		httpx.WriteError(w, http.StatusNotFound, "not_found", "Route not found")
 		return
@@ -80,8 +86,12 @@ func (a *API) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		contentType, _, err := mime.ParseMediaType(r.Header.Get("Content-Type"))
-		if err != nil || contentType != "application/json" {
-			httpx.WriteError(w, http.StatusBadRequest, "invalid_request", "Content-Type must be application/json")
+		expectedType := "application/json"
+		if r.URL.Path == "/api/auth/avatar" {
+			expectedType = "multipart/form-data"
+		}
+		if err != nil || contentType != expectedType {
+			httpx.WriteError(w, http.StatusBadRequest, "invalid_request", "Content-Type must be "+expectedType)
 			return
 		}
 		if limit := route.limit; limit != 0 {
@@ -124,3 +134,5 @@ func remoteIP(addr string) string {
 	}
 	return "unknown"
 }
+
+func routeForAvatar(handler http.HandlerFunc) route { return route{http.MethodGet, handler, 0} }

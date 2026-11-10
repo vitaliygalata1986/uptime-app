@@ -45,7 +45,11 @@ func run() error {
 	if err != nil {
 		return err
 	}
-	authHandler := auth.NewHandler(service, !cfg.LocalHTTP)
+	avatars, err := auth.NewAvatarStorage(cfg.AvatarDir)
+	if err != nil {
+		return fmt.Errorf("prepare avatar storage: %w", err)
+	}
+	authHandler := auth.NewHandler(service, !cfg.LocalHTTP, avatars)
 	healthHandler := health.NewHandler(repository.SQL)
 	server := &http.Server{Addr: cfg.HTTPAddr, Handler: httpapi.New(authHandler, healthHandler, cfg),
 		ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 10 * time.Second,

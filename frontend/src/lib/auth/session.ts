@@ -11,6 +11,7 @@ export const initialState: State = { status: "checking", user: null, error: null
 let state: State = initialState;
 let access: { token: string; expires: number } | null = null;
 let generation = 0;
+let profileGeneration = 0;
 let initialized = false;
 let refreshFlight: Promise<void> | null = null;
 let restoreFlight: Promise<void> | null = null;
@@ -73,17 +74,23 @@ export async function authorizedRequest<T>(path: string, options: RequestInit = 
   }
 }
 
-export async function updateProfile(name: string): Promise<User> {
+export async function updateProfile(name: string, avatar?: File): Promise<User> {
   const revision = generation;
   const userID = state.user?.id;
-  const user = await authorizedRequest<User>("profile", {
-    method: "PATCH",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ name }),
-  });
+  let options: RequestInit;
+  if (avatar) {
+    const body = new FormData();
+    body.set("avatar", avatar);
+    if (name) body.set("name", name);
+    options = { method: "POST", body };
+  } else {
+    options = { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name }) };
+  }
+  const user = await authorizedRequest<User>(avatar ? "avatar" : "profile", options);
   if (revision !== generation || state.status !== "authenticated" || state.user.id !== userID) {
     throw new ApiError(401, "session_changed");
   }
+  profileGeneration++;
   publish({ status: "authenticated", user, error: null });
   return user;
 }
@@ -91,11 +98,13 @@ export async function updateProfile(name: string): Promise<User> {
 export function restore(): Promise<void> {
   if (restoreFlight) return restoreFlight;
   const revision = generation;
-  publish(initialState);
+  const profileRevision = profileGeneration;
+  // Проверка при возврате из выбора файла сохраняет открытый редактор и черновик.
+  if (state.status !== "authenticated") publish(initialState);
   const flight = (async () => {
     try {
       const user = await authorizedRequest<User>("me");
-      if (revision === generation) publish({ status: "authenticated", user, error: null });
+      if (revision === generation && profileRevision === profileGeneration) publish({ status: "authenticated", user, error: null });
     } catch (error) {
       if (revision !== generation) return;
       if (error instanceof ApiError && error.status === 401) clear();

@@ -14,7 +14,7 @@ import (
 )
 
 func localAPI() *API {
-	return New(auth.NewHandler(&auth.Service{}, false), http.NotFoundHandler(), config.Config{LocalHTTP: true, AllowedOrigins: []string{"http://localhost:3000"}})
+	return New(auth.NewHandler(&auth.Service{}, false, nil), http.NotFoundHandler(), config.Config{LocalHTTP: true, AllowedOrigins: []string{"http://localhost:3000"}})
 }
 
 func TestRequestGuards(t *testing.T) {
@@ -91,6 +91,7 @@ func TestRouteMethods(t *testing.T) {
 		"/api/auth/logout":   http.MethodPost,
 		"/api/auth/me":       http.MethodGet,
 		"/api/auth/profile":  http.MethodPatch,
+		"/api/auth/avatar":   http.MethodPost,
 		"/healthz":           http.MethodGet,
 	} {
 		t.Run(path, func(t *testing.T) {

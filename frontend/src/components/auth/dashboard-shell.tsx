@@ -4,6 +4,7 @@ import { useState, type ReactNode } from "react";
 import Link from "next/link";
 import { logout } from "@/lib/auth/session";
 import { errorMessage } from "@/lib/auth/api";
+import { Avatar } from "./avatar";
 import { AuthGate } from "./gate";
 import { useAuth } from "./provider";
 import styles from "./dashboard-shell.module.css";
@@ -39,7 +40,7 @@ export function DashboardShell({ children }: { children: ReactNode }) {
             }
           }}>
             <summary className={styles.trigger}>
-              <span className={styles.avatar} aria-hidden="true">{Array.from(auth.user.name || auth.user.email)[0].toUpperCase()}</span>
+              <Avatar user={auth.user} size={38} />
               <span className={styles.identity}>
                 <span className={styles.label}>{auth.user.name || "Профиль"}</span>
                 <span className={styles.email}>{auth.user.email}</span>

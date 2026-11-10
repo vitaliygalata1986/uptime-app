@@ -8,7 +8,7 @@ The entry point validates configuration, opens PostgreSQL, applies embedded Goos
 
 Keep each module's controllers in its own `handler.go` alongside its service code; register them in `internal/httpapi/` and construct dependencies in `cmd/api/`. Do not put module request handling, service calls or database readiness queries back in `httpapi`, and do not import `httpapi` from modules. Keep cookie tests alongside the auth handler; route/guard tests and cross-module API integration tests stay in `httpapi`.
 
-The auth module also owns the current user's profile: `GET /api/auth/me` returns the public user including `name`; `PATCH /api/auth/profile` accepts only `name` (trimmed, 1–100 Unicode characters, no controls) and derives the user ID from the access JWT. Schema changes use additive Goose migrations; existing accounts start with an empty name.
+The auth module also owns the current user's profile: `GET /api/auth/me` returns the public user including `name` and `avatar_url`; `PATCH /api/auth/profile` accepts only `name` (trimmed, 1–100 Unicode characters, no controls) and derives the user ID from the access JWT. Multipart `POST /api/auth/avatar` accepts a JPEG/PNG file and optional name, saves both together, and serves local files through `GET /uploads/avatars/<file>`. `internal/auth/handler.go` owns upload/file HTTP handlers; `internal/auth/avatar.go` owns image validation and storage; `AVATAR_DIR` defaults to `uploads/avatars`, and Compose persists files in `avatar_data`. Schema changes use additive Goose migrations; existing accounts start with an empty name.
 
 ## Development Commands
 

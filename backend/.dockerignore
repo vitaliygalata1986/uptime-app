@@ -2,4 +2,5 @@
 .env.*
 !.env.example
 bin
+uploads
 *.cookies

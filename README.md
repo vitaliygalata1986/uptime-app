@@ -21,7 +21,7 @@ docker compose --env-file backend/.env up --build -d
 
 Frontend запускается отдельно, см. [frontend/README.md](frontend/README.md). В нём доступны регистрация, вход и личный кабинет. Контракт API, примеры запросов и команды проверок описаны в [backend/README.md](backend/README.md).
 
-Из меню пользователя в шапке можно открыть `/dashboard/profile`: имя редактируется и сохраняется через Go API в PostgreSQL, email и дата регистрации доступны для просмотра. Кнопка выхода расположена справа от профиля.
+Из меню пользователя в шапке можно открыть `/dashboard/profile`: имя и аватар редактируются через Go API; имя и ссылка сохраняются в PostgreSQL, изображения — в локальном volume `avatar_data`. Аватар обновляется также в шапке; email и дата регистрации доступны для просмотра. Кнопка выхода расположена справа от профиля.
 
 HTTP-контроллеры backend расположены в своих модулях (`internal/auth/handler.go`, `internal/health/handler.go`); `internal/httpapi/` собирает маршруты и выполняет общие HTTP-проверки, CORS и IP-лимиты. Подробная структура описана в [backend/README.md](backend/README.md).
 

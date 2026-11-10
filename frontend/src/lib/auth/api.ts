@@ -2,6 +2,7 @@ export interface User {
   id: number;
   email: string;
   name: string;
+  avatar_url: string;
   created_at: string;
 }
 
@@ -19,6 +20,10 @@ export class ApiError extends Error {
 }
 
 const baseURL = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:8081").replace(/\/$/, "");
+
+export function avatarURL(path: string): string {
+  return `${baseURL}${path}`;
+}
 
 export async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   let response: Response;
@@ -54,6 +59,8 @@ export function post<T>(path: string, body: object = {}) {
 
 export function errorMessage(error: unknown): string {
   if (!(error instanceof ApiError)) return "Не удалось выполнить запрос. Попробуйте ещё раз.";
+  if (error.code === "avatar_too_large") return "Изображение должно быть не больше 5 МБ.";
+  if (error.code === "invalid_avatar") return "Выберите корректное изображение JPEG или PNG: до 4096 пикселей по стороне и до 16 мегапикселей.";
   if (error.code === "invalid_name") return "Имя должно содержать от 1 до 100 символов без управляющих символов.";
   if (error.status === 401) return "Неверный email или пароль.";
   if (error.status === 409) return "Этот email уже зарегистрирован. Войдите в аккаунт.";
