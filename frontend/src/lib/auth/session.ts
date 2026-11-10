@@ -54,20 +54,38 @@ function refresh(): Promise<void> {
   return flight;
 }
 
-export async function authorizedRequest<T>(path: string): Promise<T> {
+export async function authorizedRequest<T>(path: string, options: RequestInit = {}): Promise<T> {
   const revision = generation;
   if (!access || access.expires <= Date.now()) await refresh();
   if (revision !== generation || !access) throw new ApiError(401, "session_changed");
   const token = access.token;
+  const headers = new Headers(options.headers);
+  headers.set("Authorization", `Bearer ${token}`);
   try {
-    return await request<T>(path, { headers: { Authorization: `Bearer ${token}` } });
+    return await request<T>(path, { ...options, headers });
   } catch (error) {
     if (!(error instanceof ApiError) || error.status !== 401 || revision !== generation) throw error;
     // Другой запрос мог уже обновить токен, пока этот ожидал ответ.
     if (access?.token === token) await refresh();
     if (revision !== generation || !access) throw new ApiError(401, "session_changed");
-    return request<T>(path, { headers: { Authorization: `Bearer ${access.token}` } });
+    headers.set("Authorization", `Bearer ${access.token}`);
+    return request<T>(path, { ...options, headers });
   }
+}
+
+export async function updateProfile(name: string): Promise<User> {
+  const revision = generation;
+  const userID = state.user?.id;
+  const user = await authorizedRequest<User>("profile", {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ name }),
+  });
+  if (revision !== generation || state.status !== "authenticated" || state.user.id !== userID) {
+    throw new ApiError(401, "session_changed");
+  }
+  publish({ status: "authenticated", user, error: null });
+  return user;
 }
 
 export function restore(): Promise<void> {

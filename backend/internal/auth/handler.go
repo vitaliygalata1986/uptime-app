@@ -110,6 +110,27 @@ func (h *Handler) Me(w http.ResponseWriter, r *http.Request) {
 	httpx.WriteJSON(w, http.StatusOK, user)
 }
 
+func (h *Handler) UpdateProfile(w http.ResponseWriter, r *http.Request) {
+	parts := strings.Fields(r.Header.Get("Authorization"))
+	if len(parts) != 2 || !strings.EqualFold(parts[0], "Bearer") {
+		h.fail(w, store.ErrUnauthorized)
+		return
+	}
+	var input struct {
+		Name string `json:"name"`
+	}
+	if err := httpx.Decode(w, r, &input); err != nil {
+		httpx.WriteError(w, http.StatusBadRequest, "invalid_request", "Expected a JSON object with name only")
+		return
+	}
+	user, err := h.service.UpdateProfile(r.Context(), parts[1], input.Name)
+	if err != nil {
+		h.fail(w, err)
+		return
+	}
+	httpx.WriteJSON(w, http.StatusOK, user)
+}
+
 func (h *Handler) setCookie(w http.ResponseWriter, raw string, expires time.Time) {
 	c := &http.Cookie{Name: cookieName, Value: raw, Path: "/api/auth", HttpOnly: true,
 		Secure: h.secure, SameSite: http.SameSiteLaxMode, Expires: expires.UTC(),
@@ -122,6 +143,8 @@ func (h *Handler) setCookie(w http.ResponseWriter, raw string, expires time.Time
 
 func (h *Handler) fail(w http.ResponseWriter, err error) {
 	switch {
+	case errors.Is(err, ErrInvalidName):
+		httpx.WriteError(w, http.StatusBadRequest, "invalid_name", err.Error())
 	case errors.Is(err, ErrInvalidInput):
 		httpx.WriteError(w, http.StatusBadRequest, "invalid_request", err.Error())
 	case errors.Is(err, store.ErrUnauthorized):

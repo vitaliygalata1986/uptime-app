@@ -7,5 +7,5 @@ export const metadata: Metadata = {
   description: "Регистрация и вход в Uptime.",
 };
 export default function RootLayout({ children }: LayoutProps<"/">) {
-  return <html lang="ru"><body><header className="brand">uptime<span>●</span></header><main><AuthProvider>{children}</AuthProvider></main><footer className="site-footer">Uptime · Ваш аккаунт</footer></body></html>;
+  return <html lang="ru"><body><main><AuthProvider>{children}</AuthProvider></main><footer className="site-footer">Uptime · Ваш аккаунт</footer></body></html>;
 }

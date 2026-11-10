@@ -35,6 +35,7 @@ func New(authHandler *auth.Handler, healthHandler http.Handler, cfg config.Confi
 			"/api/auth/refresh":  {http.MethodPost, authHandler.Refresh, 30},
 			"/api/auth/logout":   {http.MethodPost, authHandler.Logout, 0},
 			"/api/auth/me":       {http.MethodGet, authHandler.Me, 0},
+			"/api/auth/profile":  {http.MethodPatch, authHandler.UpdateProfile, 0},
 			"/healthz":           {http.MethodGet, healthHandler.ServeHTTP, 0},
 		},
 		origins: make(map[string]bool), limiter: newLimiter(), now: time.Now,
@@ -73,7 +74,7 @@ func (a *API) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		httpx.WriteError(w, http.StatusMethodNotAllowed, "method_not_allowed", "Method not allowed")
 		return
 	}
-	if method == http.MethodPost {
+	if method == http.MethodPost || method == http.MethodPatch {
 		if origin == "" {
 			httpx.WriteError(w, http.StatusForbidden, "forbidden_origin", "Origin is required")
 			return

@@ -6,16 +6,19 @@ import (
 	"net/mail"
 	"strings"
 	"time"
+	"unicode"
 	"unicode/utf8"
 
 	"uptime-app/backend/internal/store"
 )
 
 var ErrInvalidInput = errors.New("valid email and password of 8–128 characters required")
+var ErrInvalidName = errors.New("name must contain 1–100 characters without control characters")
 
 type User struct {
 	ID        uint64    `json:"id"`
 	Email     string    `json:"email"`
+	Name      string    `json:"name"`
 	CreatedAt time.Time `json:"created_at"`
 }
 
@@ -138,6 +141,28 @@ func (s *Service) Me(ctx context.Context, raw string) (User, error) {
 	return publicUser(user), err
 }
 
+func ValidateName(name string) (string, error) {
+	name = strings.TrimSpace(name)
+	length := utf8.RuneCountInString(name)
+	if !utf8.ValidString(name) || length < 1 || length > 100 || strings.ContainsFunc(name, unicode.IsControl) {
+		return "", ErrInvalidName
+	}
+	return name, nil
+}
+
+func (s *Service) UpdateProfile(ctx context.Context, raw, name string) (User, error) {
+	id, err := s.Tokens.Parse(raw)
+	if err != nil {
+		return User{}, store.ErrUnauthorized
+	}
+	name, err = ValidateName(name)
+	if err != nil {
+		return User{}, err
+	}
+	user, err := s.Store.UpdateUserName(ctx, id, name)
+	return publicUser(user), err
+}
+
 func (s *Service) result(user store.User, refresh string, expires time.Time) (Result, error) {
 	access, err := s.Tokens.Issue(user.ID)
 	return Result{User: publicUser(user), AccessToken: access, TokenType: "Bearer",
@@ -145,7 +170,7 @@ func (s *Service) result(user store.User, refresh string, expires time.Time) (Re
 }
 
 func publicUser(user store.User) User {
-	return User{ID: user.ID, Email: user.Email, CreatedAt: user.CreatedAt}
+	return User{ID: user.ID, Email: user.Email, Name: user.Name, CreatedAt: user.CreatedAt}
 }
 
 func newSession(now time.Time, userID uint64) (store.AuthSession, store.RefreshToken, string, error) {

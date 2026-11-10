@@ -90,6 +90,7 @@ func TestRouteMethods(t *testing.T) {
 		"/api/auth/refresh":  http.MethodPost,
 		"/api/auth/logout":   http.MethodPost,
 		"/api/auth/me":       http.MethodGet,
+		"/api/auth/profile":  http.MethodPatch,
 		"/healthz":           http.MethodGet,
 	} {
 		t.Run(path, func(t *testing.T) {
@@ -109,6 +110,30 @@ func TestRouteMethods(t *testing.T) {
 				t.Fatalf("method guard: %d %s", w.Code, w.Body)
 			}
 		})
+	}
+}
+
+func TestProfileRequestGuards(t *testing.T) {
+	for _, tc := range []struct {
+		origin, contentType, access, body string
+		status                            int
+	}{
+		{"", "application/json", "", `{}`, 403},
+		{"https://evil.example", "application/json", "", `{}`, 403},
+		{"http://localhost:3000", "text/plain", "", `{}`, 400},
+		{"http://localhost:3000", "application/json", "", `{"name":"Alice"}`, 401},
+		{"http://localhost:3000", "application/json", "Bearer invalid", `{"name":"Alice","email":"other@example.com"}`, 400},
+		{"http://localhost:3000", "application/json", "Bearer invalid", `null`, 400},
+	} {
+		r := httptest.NewRequest(http.MethodPatch, "/api/auth/profile", strings.NewReader(tc.body))
+		r.Header.Set("Origin", tc.origin)
+		r.Header.Set("Content-Type", tc.contentType)
+		r.Header.Set("Authorization", tc.access)
+		w := httptest.NewRecorder()
+		localAPI().ServeHTTP(w, r)
+		if w.Code != tc.status {
+			t.Fatalf("%+v: %d %s", tc, w.Code, w.Body)
+		}
 	}
 }
 

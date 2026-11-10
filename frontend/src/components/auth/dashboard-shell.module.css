@@ -19,6 +19,19 @@
   font-weight: 600;
 }
 
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.logout {
+  width: auto;
+  margin-top: 0;
+  flex-shrink: 0;
+}
+
 .profile {
   position: relative;
   min-width: 0;
@@ -63,8 +76,11 @@
 }
 
 .label {
+  overflow: hidden;
   font-size: 14px;
   font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .email {
@@ -121,13 +137,24 @@
     gap: 16px;
   }
 
-  .profile {
+  .actions {
     width: 100%;
+  }
+
+  .profile {
+    flex: 1;
     max-width: none;
   }
 
+  .logout {
+    max-width: 112px;
+    padding: 10px 12px;
+    font-size: 14px;
+  }
+
   .popover {
-    width: 100%;
+    left: 0;
+    right: auto;
   }
 
   .content {

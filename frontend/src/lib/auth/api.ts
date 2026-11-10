@@ -1,6 +1,7 @@
 export interface User {
   id: number;
   email: string;
+  name: string;
   created_at: string;
 }
 
@@ -53,6 +54,7 @@ export function post<T>(path: string, body: object = {}) {
 
 export function errorMessage(error: unknown): string {
   if (!(error instanceof ApiError)) return "Не удалось выполнить запрос. Попробуйте ещё раз.";
+  if (error.code === "invalid_name") return "Имя должно содержать от 1 до 100 символов без управляющих символов.";
   if (error.status === 401) return "Неверный email или пароль.";
   if (error.status === 409) return "Этот email уже зарегистрирован. Войдите в аккаунт.";
   if (error.status === 429) return "Слишком много попыток. Подождите минуту и попробуйте снова.";

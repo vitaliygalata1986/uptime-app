@@ -24,6 +24,7 @@ var (
 type User struct {
 	ID           uint64
 	Email        string
+	Name         string
 	PasswordHash string
 	CreatedAt    time.Time
 }
@@ -97,6 +98,19 @@ func (s *Store) UserByID(ctx context.Context, id uint64) (User, error) {
 	var user User
 	err := s.db.WithContext(ctx).First(&user, id).Error
 	return user, unauthorizedIfMissing(err)
+}
+
+func (s *Store) UpdateUserName(ctx context.Context, id uint64, name string) (User, error) {
+	var user User
+	result := s.db.WithContext(ctx).Model(&user).Clauses(clause.Returning{}).
+		Where("id = ?", id).Update("name", name)
+	if result.Error != nil {
+		return User{}, result.Error
+	}
+	if result.RowsAffected == 0 {
+		return User{}, ErrUnauthorized
+	}
+	return user, nil
 }
 
 func (s *Store) CreateAccount(ctx context.Context, user *User, session *AuthSession, token *RefreshToken) error {

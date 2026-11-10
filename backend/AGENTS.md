@@ -8,6 +8,8 @@ The entry point validates configuration, opens PostgreSQL, applies embedded Goos
 
 Keep each module's controllers in its own `handler.go` alongside its service code; register them in `internal/httpapi/` and construct dependencies in `cmd/api/`. Do not put module request handling, service calls or database readiness queries back in `httpapi`, and do not import `httpapi` from modules. Keep cookie tests alongside the auth handler; route/guard tests and cross-module API integration tests stay in `httpapi`.
 
+The auth module also owns the current user's profile: `GET /api/auth/me` returns the public user including `name`; `PATCH /api/auth/profile` accepts only `name` (trimmed, 1–100 Unicode characters, no controls) and derives the user ID from the access JWT. Schema changes use additive Goose migrations; existing accounts start with an empty name.
+
 ## Development Commands
 
 Run commands from `backend/` with Go 1.27+; Docker builds use Go 1.27.3 without changing the system toolchain:

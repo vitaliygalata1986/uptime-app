@@ -262,7 +262,7 @@ func TestIntegrationLoginAndMe(t *testing.T) {
 	w := h.do("GET", "me", "", "", logged.AccessToken)
 	expect(t, w, 200)
 	var user map[string]any
-	if err := json.Unmarshal(w.Body.Bytes(), &user); err != nil || len(user) != 3 || user["email"] != "me@example.com" {
+	if err := json.Unmarshal(w.Body.Bytes(), &user); err != nil || len(user) != 4 || user["email"] != "me@example.com" || user["name"] != "" {
 		t.Fatalf("public user: %s", w.Body)
 	}
 	expect(t, h.do("GET", "me", "", "", ""), 401)

@@ -2,7 +2,7 @@
 
 ## Project Structure
 
-This project uses Next.js 16 App Router, React, and strict TypeScript. Routes and layouts live in `src/app/`; `@/*` resolves to `src/*`. `/login`, `/register` and `/dashboard` provide authentication. `src/components/auth/` owns UI and the provider; `src/lib/auth/` owns typed requests and the in-memory session. No dedicated test framework is configured.
+This project uses Next.js 16 App Router, React, and strict TypeScript. Routes and layouts live in `src/app/`; `@/*` resolves to `src/*`. `/login`, `/register` and `/dashboard` provide authentication. `/dashboard/profile` displays the current user and edits only their name via `PATCH /api/auth/profile`; it uses the dashboard layout's auth guard. `src/components/auth/` owns UI and the provider; `src/lib/auth/` owns typed requests and the in-memory session. No dedicated test framework is configured.
 
 ## Development Commands
 

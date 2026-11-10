@@ -9,7 +9,7 @@ backend/
 ├── internal/store/           # GORM-модели, запросы и транзакции
 │   └── migrations/           # Встроенные в бинарник SQL-миграции Goose
 ├── internal/auth/            # Пароли, JWT, сессии, DTO и HTTP-контроллеры авторизации
-│   └── handler.go            # Register, Login, Refresh, Logout, Me, cookie и ошибки auth
+│   └── handler.go            # Register, Login, Refresh, Logout, Me, UpdateProfile, cookie и ошибки auth
 ├── internal/health/          # HTTP-контроллер готовности БД (/healthz)
 ├── internal/httpapi/         # Сборка маршрутов, общие HTTP-проверки, CORS и лимиты
 ├── internal/httpx/           # Общие функции чтения JSON и записи ответов/ошибок
@@ -79,7 +79,8 @@ docker compose -f ../compose.yaml --env-file .env up -d
 | POST | `/api/auth/login` | `200`, отдельная сессия устройства |
 | POST | `/api/auth/refresh` | `200`, новая пара токенов |
 | POST | `/api/auth/logout` | `204`, отзыв сессии и удаление cookie; повторный выход допустим |
-| GET | `/api/auth/me` | `200`, `{id, email, created_at}` по access JWT |
+| GET | `/api/auth/me` | `200`, `{id, email, name, created_at}` по access JWT |
+| PATCH | `/api/auth/profile` | `200`, обновлённый пользователь; принимает только `{name}` по access JWT |
 | GET | `/healthz` | `200`, если HTTP и соединение с БД готовы |
 
 Все POST-запросы требуют разрешённый `Origin` и `Content-Type: application/json`. Регистрация и вход принимают `{email, password}`, refresh и logout — `{}`. Тело ограничено 8 KiB; неизвестные поля и лишние JSON-значения запрещены. Пароль длиной 8–128 Unicode-символов сохраняется без обрезки и нормализации. Email очищается от пробелов по краям и приводится к нижнему регистру.
@@ -88,7 +89,7 @@ docker compose -f ../compose.yaml --env-file .env up -d
 
 ```json
 {
-  "user": {"id": 1, "email": "user@example.com", "created_at": "2026-10-30T12:00:00Z"},
+  "user": {"id": 1, "email": "user@example.com", "name": "", "created_at": "2026-10-30T12:00:00Z"},
   "access_token": "<JWT>",
   "token_type": "Bearer",
   "expires_in": 900
@@ -102,6 +103,8 @@ Access JWT действует 15 минут; алгоритм HS256, прове�
 Ошибки имеют форму `{"error":{"code":"unauthorized","message":"Invalid credentials or token"}}`. Статусы: `400` — некорректные данные, `401` — учётные данные/токен, `403` — Origin, `409` — занятый email, `429` — лимит. Ошибка входа одинакова для неизвестного email и неверного пароля. Ответы авторизации имеют `Cache-Control: no-store`.
 
 Лимиты на IP в минуту: регистрация 5, вход 10, refresh 30. `429` содержит `Retry-After`. Лимитер хранится в памяти одного процесса и очищает устаревшие записи при запросах. Заголовки `X-Forwarded-For`, `X-Real-IP` не используются: за прокси запросы учитываются по IP прокси.
+
+Имя редактируется через `PATCH /api/auth/profile` с Bearer access JWT, разрешённым `Origin` и `Content-Type: application/json`. Принимается только поле `name`: от 1 до 100 Unicode-символов без управляющих символов; пробелы по краям удаляются. Ошибка имени возвращает `400 invalid_name`. Email, ID и дата регистрации изменению не подлежат. Миграция `00002_user_name.sql` добавляет поле с пустым значением для существующих аккаунтов; регистрация по-прежнему требует только email и пароль. Имя также возвращается при входе, refresh и чтении `/me`.
 
 ## HTTP-пример с cookie-файлом
 

@@ -1,2 +1,1 @@
-import { Dashboard } from "@/components/auth/dashboard";
-export default function DashboardPage() { return <Dashboard />; }
+export default function DashboardPage() { return null; }
