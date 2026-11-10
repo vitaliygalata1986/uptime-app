@@ -21,4 +21,10 @@ Validate changes using the affected project's checks. For changes spanning both 
 
 ## Commit & Pull Request Guidelines
 
-Recent history uses prefixes such as `feat:` and `chore:`. Write concise, imperative subjects and keep commits focused. Pull requests should describe the change, list validation performed, link relevant issues, and include screenshots for visible UI changes.
+- Use Conventional Commits: `feat`, `fix`, `refactor`, `test`, `docs`, or `chore`.
+- Keep the subject at most 72 characters and use the imperative mood.
+- Do not use emoji or filler such as "significantly improved".
+- Include a body only when needed to explain why, not what.
+- Keep one logical step per commit.
+
+Pull requests should describe the change, list validation performed, link relevant issues, and include screenshots for visible UI changes.
