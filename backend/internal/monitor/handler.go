@@ -4,8 +4,10 @@ import (
 	"errors"
 	"log/slog"
 	"net/http"
+	"net/url"
 
 	"uptime-app/backend/internal/httpx"
+	"uptime-app/backend/internal/store"
 )
 
 type Handler struct {
@@ -24,12 +26,17 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	switch r.Method {
 	case http.MethodGet:
-		monitors, err := h.service.List(r.Context(), userID)
+		query, err := url.ParseQuery(r.URL.RawQuery)
+		if err != nil || len(query) > 1 || (len(query) == 1 && len(query["cursor"]) != 1) {
+			h.fail(w, ErrInvalidCursor)
+			return
+		}
+		page, err := h.service.List(r.Context(), userID, query.Get("cursor"))
 		if err != nil {
 			h.fail(w, err)
 			return
 		}
-		httpx.WriteJSON(w, http.StatusOK, map[string]any{"monitors": monitors})
+		httpx.WriteJSON(w, http.StatusOK, page)
 	case http.MethodPost:
 		var body struct {
 			URL             string `json:"url"`
@@ -57,6 +64,12 @@ func (h *Handler) fail(w http.ResponseWriter, err error) {
 		httpx.WriteError(w, http.StatusBadRequest, "invalid_url", "Use an HTTP or HTTPS URL up to 2048 bytes, without credentials or fragment")
 	case errors.Is(err, ErrInvalidInterval):
 		httpx.WriteError(w, http.StatusBadRequest, "invalid_interval", "Use a whole number of seconds from 1 to 2147483647")
+	case errors.Is(err, ErrInvalidCursor):
+		httpx.WriteError(w, http.StatusBadRequest, "invalid_cursor", "Use the next_cursor returned by the previous page")
+	case errors.Is(err, store.ErrMonitorLimit):
+		httpx.WriteError(w, http.StatusConflict, "monitor_limit", "An account can have at most 100 monitors")
+	case errors.Is(err, store.ErrUnauthorized):
+		httpx.WriteError(w, http.StatusUnauthorized, "unauthorized", "Authentication required")
 	default:
 		slog.Error("Monitor request failed", "error", err)
 		httpx.WriteError(w, http.StatusInternalServerError, "internal_error", "Could not process monitor")

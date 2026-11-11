@@ -6,6 +6,8 @@ This project uses Next.js 16 App Router, React, and strict TypeScript. Routes an
 
 `src/components/monitors/` owns the dashboard's monitor list and creation form; `src/lib/monitors.ts` calls `GET/POST /api/monitors` through `authorizedAPIRequest`. Users enter a positive whole number and choose seconds, minutes or hours; the request stores the equivalent interval in seconds (1–2147483647). Points are loaded after authentication and created points appear immediately. Polling is not implemented; do not display fabricated availability or response time.
 
+Keep monitor state keyed by the authenticated user ID. `CreateMonitorForm` owns creation inputs and errors; `useMonitors` owns loading and cursor pagination (20 records, `next_cursor`). A cross-tab sign-in hides the previous account immediately, and protected requests reject successful responses from an obsolete session generation, including 401 retries. Preserve these checks when adding account-bound features.
+
 ## Development Commands
 
 Run commands from `frontend/`. Use Node.js 22.13+ within the 22 release line, or Node.js 24+.
@@ -13,6 +15,7 @@ Run commands from `frontend/`. Use Node.js 22.13+ within the 22 release line, or
 - `npm ci`: install dependencies from the lockfile.
 - `npm run dev`: start development at `http://localhost:3000`.
 - `npm run lint`: run ESLint with Next.js Core Web Vitals and TypeScript rules.
+- `npm test`: run Node.js regression tests for session isolation and stale responses.
 - `npm run build`: create a production build.
 - `npm start`: serve the production build after building.
 
@@ -26,7 +29,7 @@ Preserve the explicit Turbopack root in `next.config.ts` for this nested checkou
 
 ## Testing
 
-No test framework, test script, or coverage threshold is configured. Validate changes with lint and production build, then inspect affected pages in the browser.
+Session regression tests use the built-in Node.js test runner in `tests/`, without another test framework or a coverage threshold. Validate changes with `npm test`, lint and production build, then inspect affected pages in the browser.
 
 <!-- BEGIN:nextjs-agent-rules -->
 

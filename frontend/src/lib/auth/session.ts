@@ -67,16 +67,19 @@ export async function authorizedAPIRequest<T>(path: string, options: RequestInit
   const token = access.token;
   const headers = new Headers(options.headers);
   headers.set("Authorization", `Bearer ${token}`);
+  let result: T;
   try {
-    return await apiRequest<T>(path, { ...options, headers });
+    result = await apiRequest<T>(path, { ...options, headers });
   } catch (error) {
     if (!(error instanceof ApiError) || error.status !== 401 || revision !== generation) throw error;
     // Другой запрос мог уже обновить токен, пока этот ожидал ответ.
     if (access?.token === token) await refresh();
     if (revision !== generation || !access) throw new ApiError(401, "session_changed");
     headers.set("Authorization", `Bearer ${access.token}`);
-    return apiRequest<T>(path, { ...options, headers });
+    result = await apiRequest<T>(path, { ...options, headers });
   }
+  if (revision !== generation) throw new ApiError(401, "session_changed");
+  return result;
 }
 
 export async function updateProfile(name: string, avatar?: File): Promise<User> {
@@ -158,7 +161,10 @@ export function initialize() {
       refreshFlight = null;
       restoreFlight = null;
       if (event.data === "signed-out") clear();
-      else void restore();
+      else {
+        publish(initialState);
+        void restore();
+      }
     };
   }
   void restore();

@@ -2,6 +2,8 @@ package monitor
 
 import (
 	"context"
+	"encoding/base64"
+	"encoding/json"
 	"errors"
 	"net/url"
 	"strconv"
@@ -15,9 +17,12 @@ import (
 var (
 	ErrInvalidURL      = errors.New("invalid monitor URL")
 	ErrInvalidInterval = errors.New("invalid monitor interval")
+	ErrInvalidCursor   = errors.New("invalid monitor cursor")
 )
 
 const MaxIntervalSeconds = 2147483647 // PostgreSQL INTEGER capacity.
+const MaxMonitorsPerUser = 100
+const PageSize = 20
 
 // Monitor is the public representation; ownership comes only from authentication.
 type Monitor struct {
@@ -29,6 +34,11 @@ type Monitor struct {
 
 type Service struct {
 	Store *store.Store
+}
+
+type Page struct {
+	Monitors   []Monitor `json:"monitors"`
+	NextCursor string    `json:"next_cursor"`
 }
 
 func ValidateURL(raw string) (string, error) {
@@ -60,22 +70,45 @@ func (s *Service) Create(ctx context.Context, userID uint64, rawURL string, inte
 		return Monitor{}, ErrInvalidInterval
 	}
 	row := store.Monitor{UserID: userID, URL: value, IntervalSeconds: interval, CreatedAt: time.Now().UTC().Truncate(time.Microsecond)}
-	if err := s.Store.CreateMonitor(ctx, &row); err != nil {
+	if err := s.Store.CreateMonitor(ctx, &row, MaxMonitorsPerUser); err != nil {
 		return Monitor{}, err
 	}
 	return publicMonitor(row), nil
 }
 
-func (s *Service) List(ctx context.Context, userID uint64) ([]Monitor, error) {
-	rows, err := s.Store.ListMonitors(ctx, userID)
+func (s *Service) List(ctx context.Context, userID uint64, cursor string) (Page, error) {
+	var before *store.MonitorCursor
+	if cursor != "" {
+		if len(cursor) > 256 {
+			return Page{}, ErrInvalidCursor
+		}
+		decoded, err := base64.RawURLEncoding.DecodeString(cursor)
+		var value store.MonitorCursor
+		if err != nil || json.Unmarshal(decoded, &value) != nil || value.ID == 0 || value.ID > 9223372036854775807 || value.CreatedAt.IsZero() {
+			return Page{}, ErrInvalidCursor
+		}
+		before = &value
+	}
+	rows, err := s.Store.ListMonitors(ctx, userID, before, PageSize+1)
 	if err != nil {
-		return nil, err
+		return Page{}, err
+	}
+	page := Page{}
+	if len(rows) > PageSize {
+		rows = rows[:PageSize]
+		last := rows[len(rows)-1]
+		encoded, err := json.Marshal(store.MonitorCursor{CreatedAt: last.CreatedAt, ID: last.ID})
+		if err != nil {
+			return Page{}, err
+		}
+		page.NextCursor = base64.RawURLEncoding.EncodeToString(encoded)
 	}
 	monitors := make([]Monitor, 0, len(rows))
 	for _, row := range rows {
 		monitors = append(monitors, publicMonitor(row))
 	}
-	return monitors, nil
+	page.Monitors = monitors
+	return page, nil
 }
 
 func publicMonitor(row store.Monitor) Monitor {
