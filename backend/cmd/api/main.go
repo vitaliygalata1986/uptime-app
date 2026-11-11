@@ -15,6 +15,7 @@ import (
 	"uptime-app/backend/internal/config"
 	"uptime-app/backend/internal/health"
 	"uptime-app/backend/internal/httpapi"
+	"uptime-app/backend/internal/monitor"
 	"uptime-app/backend/internal/store"
 	"uptime-app/backend/internal/upload"
 )
@@ -57,7 +58,8 @@ func run() error {
 	uploadHandler := upload.NewHandler(files)
 	authHandler := auth.NewHandler(service, !cfg.LocalHTTP, avatars)
 	healthHandler := health.NewHandler(repository.SQL)
-	server := &http.Server{Addr: cfg.HTTPAddr, Handler: httpapi.New(authHandler, healthHandler, uploadHandler, cfg),
+	monitorHandler := monitor.NewHandler(&monitor.Service{Store: repository})
+	server := &http.Server{Addr: cfg.HTTPAddr, Handler: httpapi.New(authHandler, healthHandler, uploadHandler, monitorHandler, cfg),
 		ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 10 * time.Second,
 		WriteTimeout: 15 * time.Second, IdleTimeout: 60 * time.Second, MaxHeaderBytes: 16 * 1024}
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)

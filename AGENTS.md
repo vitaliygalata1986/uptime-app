@@ -11,7 +11,7 @@ Read the applicable directory guide before changing either project. Run commands
 
 ## Shared Development Guidelines
 
-Keep changes focused and match the surrounding code style. Backend authentication, PostgreSQL persistence through GORM, and Goose migrations are implemented. Frontend registration, login, session restoration and the account dashboard use the Go API. Monitoring is not implemented. Run both projects with `npm run dev` (Node.js 22.13+ or 24+); the launcher waits for readiness and uses the published API port. Ctrl+C stops frontend; `npm run dev:stop` stops backend without deleting data.
+Keep changes focused and match the surrounding code style. Backend authentication, PostgreSQL persistence through GORM, and Goose migrations are implemented. Frontend registration, login, session restoration and the account dashboard use the Go API. Monitor creation and per-user listing are implemented; site polling is not implemented. Run both projects with `npm run dev` (Node.js 22.13+ or 24+); the launcher waits for readiness and uses the published API port. Ctrl+C stops frontend; `npm run dev:stop` stops backend without deleting data.
 
 Backend HTTP controllers belong to their feature modules (`backend/internal/auth/handler.go`, `backend/internal/health/handler.go`). Keep `backend/internal/httpapi/` focused on route assembly and shared HTTP guards; see `backend/AGENTS.md` for dependency and test placement rules.
 

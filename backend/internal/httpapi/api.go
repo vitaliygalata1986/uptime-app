@@ -5,6 +5,7 @@ import (
 	"mime"
 	"net"
 	"net/http"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -12,6 +13,7 @@ import (
 	"uptime-app/backend/internal/auth"
 	"uptime-app/backend/internal/config"
 	"uptime-app/backend/internal/httpx"
+	"uptime-app/backend/internal/monitor"
 	"uptime-app/backend/internal/upload"
 )
 
@@ -30,7 +32,7 @@ type API struct {
 	uploads http.HandlerFunc
 }
 
-func New(authHandler *auth.Handler, healthHandler http.Handler, uploadHandler *upload.Handler, cfg config.Config) *API {
+func New(authHandler *auth.Handler, healthHandler http.Handler, uploadHandler *upload.Handler, monitorHandler *monitor.Handler, cfg config.Config) *API {
 	a := &API{
 		routes: map[string]route{
 			"/api/auth/register": {http.MethodPost, authHandler.Register, 5},
@@ -41,6 +43,7 @@ func New(authHandler *auth.Handler, healthHandler http.Handler, uploadHandler *u
 			"/api/auth/profile":  {http.MethodPatch, authHandler.UpdateProfile, 0},
 			"/api/auth/avatar":   {http.MethodPost, authHandler.UploadAvatar, 10},
 			"/api/uploads":       {http.MethodPost, authHandler.RequireUser(uploadHandler.Upload), 10},
+			"/api/monitors":      {"GET, POST", authHandler.RequireUser(monitorHandler.ServeHTTP), 0},
 			"/healthz":           {http.MethodGet, healthHandler.ServeHTTP, 0},
 		},
 		avatars: authHandler.AvatarFile,
@@ -82,12 +85,12 @@ func (a *API) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		a.preflight(w, r, method)
 		return
 	}
-	if r.Method != method {
+	if !slices.Contains(strings.Split(method, ", "), r.Method) {
 		w.Header().Set("Allow", method+", OPTIONS")
 		httpx.WriteError(w, http.StatusMethodNotAllowed, "method_not_allowed", "Method not allowed")
 		return
 	}
-	if method == http.MethodPost || method == http.MethodPatch {
+	if r.Method == http.MethodPost || r.Method == http.MethodPatch {
 		if origin == "" {
 			httpx.WriteError(w, http.StatusForbidden, "forbidden_origin", "Origin is required")
 			return
@@ -115,7 +118,7 @@ func (a *API) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 func (a *API) preflight(w http.ResponseWriter, r *http.Request, method string) {
 	w.Header().Add("Vary", "Access-Control-Request-Method")
 	w.Header().Add("Vary", "Access-Control-Request-Headers")
-	if r.Header.Get("Origin") == "" || r.Header.Get("Access-Control-Request-Method") != method {
+	if r.Header.Get("Origin") == "" || !slices.Contains(strings.Split(method, ", "), r.Header.Get("Access-Control-Request-Method")) {
 		httpx.WriteError(w, http.StatusForbidden, "forbidden_origin", "Preflight is not allowed")
 		return
 	}

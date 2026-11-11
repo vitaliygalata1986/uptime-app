@@ -184,10 +184,10 @@ func TestIntegrationAvatarMigrationPreservesUsers(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := h.db.SQL.Exec("ALTER TABLE users DROP COLUMN avatar_url"); err != nil {
+	if _, err := h.db.SQL.Exec("DROP TABLE monitors; ALTER TABLE users DROP COLUMN avatar_url"); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := h.db.SQL.Exec("DELETE FROM goose_db_version WHERE version_id = 3"); err != nil {
+	if _, err := h.db.SQL.Exec("DELETE FROM goose_db_version WHERE version_id >= 3"); err != nil {
 		t.Fatal(err)
 	}
 	if err := h.db.Migrate(context.Background()); err != nil {

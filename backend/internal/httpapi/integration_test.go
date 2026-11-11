@@ -18,6 +18,7 @@ import (
 	"uptime-app/backend/internal/auth"
 	"uptime-app/backend/internal/config"
 	"uptime-app/backend/internal/health"
+	"uptime-app/backend/internal/monitor"
 	"uptime-app/backend/internal/store"
 	"uptime-app/backend/internal/upload"
 )
@@ -94,7 +95,7 @@ func integration(t *testing.T) *harness {
 	if err != nil {
 		t.Fatal(err)
 	}
-	api := New(auth.NewHandler(service, false, avatars), health.NewHandler(db.SQL), upload.NewHandler(files), config.Config{LocalHTTP: true, AllowedOrigins: []string{"http://localhost:3000"}})
+	api := New(auth.NewHandler(service, false, avatars), health.NewHandler(db.SQL), upload.NewHandler(files), monitor.NewHandler(&monitor.Service{Store: db}), config.Config{LocalHTTP: true, AllowedOrigins: []string{"http://localhost:3000"}})
 	api.now = now
 	return &harness{api: api, db: db, clock: clock, avatarDir: avatarDir}
 }

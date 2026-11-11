@@ -11,11 +11,12 @@ import (
 
 	"uptime-app/backend/internal/auth"
 	"uptime-app/backend/internal/config"
+	"uptime-app/backend/internal/monitor"
 	"uptime-app/backend/internal/upload"
 )
 
 func localAPI() *API {
-	return New(auth.NewHandler(&auth.Service{}, false, nil), http.NotFoundHandler(), upload.NewHandler(nil), config.Config{LocalHTTP: true, AllowedOrigins: []string{"http://localhost:3000"}})
+	return New(auth.NewHandler(&auth.Service{}, false, nil), http.NotFoundHandler(), upload.NewHandler(nil), monitor.NewHandler(nil), config.Config{LocalHTTP: true, AllowedOrigins: []string{"http://localhost:3000"}})
 }
 
 func TestRequestGuards(t *testing.T) {
