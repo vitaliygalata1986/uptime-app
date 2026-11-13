@@ -259,10 +259,11 @@ func (h *Handler) RequireUser(next http.HandlerFunc) http.HandlerFunc {
 			h.fail(w, store.ErrUnauthorized)
 			return
 		}
-		if _, err := h.service.Me(r.Context(), parts[1]); err != nil {
+		user, err := h.service.Me(r.Context(), parts[1])
+		if err != nil {
 			h.fail(w, err)
 			return
 		}
-		next(w, r)
+		next(w, r.WithContext(httpx.WithUserID(r.Context(), user.ID)))
 	}
 }
