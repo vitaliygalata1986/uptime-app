@@ -31,4 +31,13 @@ Validate changes using the affected project's checks. For changes spanning both 
 - Include a body only when needed to explain why, not what.
 - Keep one logical step per commit.
 
-Pull requests should describe the change, list validation performed, link relevant issues, and include screenshots for visible UI changes.
+### Pull Request Workflow
+
+- When asked to open a PR for an existing task branch, keep that branch and include all of its changes relative to the target branch. Read the complete diff and commit history before writing the title and description.
+- Fetch `origin` and verify the default branch on GitHub before choosing the PR base; do not assume it is named `main`. Use an explicitly requested base when it exists; if it does not exist, clarify the target before opening the PR. Check for an existing PR for the same head/base pair and update it instead of creating a duplicate.
+- Run the applicable checks from the frontend/backend guides and `git diff --check`. Review the staged paths, exclude secrets and unrelated files, commit intended changes, then push the task branch with an upstream. Do not force-push or merge as part of a request only to open a PR.
+- Use a Conventional Commits title, `<type>[optional scope]: <imperative summary>`, at most 72 characters, describing the complete change against the base branch.
+- Write a detailed description covering the problem and resulting behavior, frontend/backend changes, API contracts and migrations, relevant security behavior, and known limitations. Scale the sections to the change and link relevant issues when available.
+- List the exact validation commands and their results. Distinguish static checks, automated integration tests, and browser/runtime verification; label earlier verification with its date and report skipped checks explicitly. Include repository screenshots for visible UI changes, using links that resolve from the PR.
+- Create the PR with explicit head and base branches. With GitHub CLI, use `gh pr create --base <base> --head <branch> --title '<title>' --body-file <file>`; keep multiline Markdown in a UTF-8 file so newlines and code examples are preserved.
+- After creating or updating the PR, verify its URL, title, head/base branches and published description, check available CI/review status, and report the link and any pending checks. Leave merging for a separate instruction after review and successful required checks.
