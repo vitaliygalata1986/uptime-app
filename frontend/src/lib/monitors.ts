@@ -25,8 +25,7 @@ export function listMonitors(cursor = ""): Promise<MonitorPage> {
 export function createMonitor(url: string, intervalSeconds: number): Promise<Monitor> {
   return authorizedAPIRequest("monitors", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ url: url.trim(), interval_seconds: intervalSeconds }),
+    data: { url: url.trim(), interval_seconds: intervalSeconds },
   });
 }
 

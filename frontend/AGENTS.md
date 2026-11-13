@@ -23,13 +23,13 @@ Run commands from `frontend/`. Use Node.js 22.13+ within the 22 release line, or
 
 Use two-space indentation, double quotes, semicolons, and explicit types where useful. Use PascalCase for React component names and Next.js filenames such as `page.tsx` and `layout.tsx` for route conventions. No separate Prettier configuration exists.
 
-Use `NEXT_PUBLIC_API_URL` and credentials with the existing Go API. Refresh stays in HttpOnly cookie, access only in memory: never web storage or readable cookies. Preserve Web Locks serialization, single-flight refresh and stale-response generation checks; BroadcastChannel carries only events. Client guards control UI; API authorization protects data. Never cache user sessions in server components.
+Use the shared Axios clients from `src/lib/api.ts` with `NEXT_PUBLIC_API_URL`, `withCredentials` and a 15-second timeout. Public auth requests use the public client; protected calls use `authorizedAPIRequest`, whose client interceptor reads the current access token immediately before dispatch. Callers pass JSON objects or `FormData` as `data`; do not attach tokens or multipart Content-Type manually. Refresh stays in HttpOnly cookie, access only in memory: never web storage or readable cookies. Preserve Web Locks serialization, single-flight refresh, one retry after 401 and stale-response generation checks; BroadcastChannel carries only events. Client guards control UI; API authorization protects data. Never cache user sessions in server components.
 
 Preserve the explicit Turbopack root in `next.config.ts` for this nested checkout.
 
 ## Testing
 
-Session regression tests use the built-in Node.js test runner in `tests/`, without another test framework or a coverage threshold. Validate changes with `npm test`, lint and production build, then inspect affected pages in the browser.
+Session regression tests use the built-in Node.js test runner in `tests/`, without another test framework or a coverage threshold. They execute the real transport/auth modules and Axios interceptors with a controlled adapter, covering session isolation, token injection, refresh retries, JSON/multipart and error normalization. Validate changes with `npm test`, lint and production build, then inspect affected pages in the browser.
 
 <!-- BEGIN:nextjs-agent-rules -->
 

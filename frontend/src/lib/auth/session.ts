@@ -1,6 +1,6 @@
 "use client";
 
-import { apiRequest } from "../api";
+import { apiRequest, createAPIClient, type APIRequestOptions } from "../api";
 import { ApiError, errorMessage, post, type AuthResult, type User } from "./api";
 
 type State =
@@ -18,6 +18,14 @@ let refreshFlight: Promise<void> | null = null;
 let restoreFlight: Promise<void> | null = null;
 let channel: BroadcastChannel | null = null;
 const listeners = new Set<() => void>();
+const authorizedClient = createAPIClient();
+
+// Read the current in-memory token immediately before dispatch, including retries.
+authorizedClient.interceptors.request.use((config) => {
+  if (!access) throw new ApiError(401, "session_changed");
+  config.headers.set("Authorization", `Bearer ${access.token}`);
+  return config;
+}, (error: unknown) => { throw error; }, { synchronous: true });
 
 export const getSnapshot = () => state;
 export const getServerSnapshot = () => initialState;
@@ -56,27 +64,24 @@ function refresh(): Promise<void> {
   return flight;
 }
 
-export function authorizedRequest<T>(path: string, options: RequestInit = {}): Promise<T> {
+export function authorizedRequest<T>(path: string, options: APIRequestOptions = {}): Promise<T> {
   return authorizedAPIRequest<T>(`auth/${path}`, options);
 }
 
-export async function authorizedAPIRequest<T>(path: string, options: RequestInit = {}): Promise<T> {
+export async function authorizedAPIRequest<T>(path: string, options: APIRequestOptions = {}): Promise<T> {
   const revision = generation;
   if (!access || access.expires <= Date.now()) await refresh();
   if (revision !== generation || !access) throw new ApiError(401, "session_changed");
   const token = access.token;
-  const headers = new Headers(options.headers);
-  headers.set("Authorization", `Bearer ${token}`);
   let result: T;
   try {
-    result = await apiRequest<T>(path, { ...options, headers });
+    result = await apiRequest<T>(path, options, authorizedClient);
   } catch (error) {
     if (!(error instanceof ApiError) || error.status !== 401 || revision !== generation) throw error;
     // Другой запрос мог уже обновить токен, пока этот ожидал ответ.
     if (access?.token === token) await refresh();
     if (revision !== generation || !access) throw new ApiError(401, "session_changed");
-    headers.set("Authorization", `Bearer ${access.token}`);
-    result = await apiRequest<T>(path, { ...options, headers });
+    result = await apiRequest<T>(path, options, authorizedClient);
   }
   if (revision !== generation) throw new ApiError(401, "session_changed");
   return result;
@@ -85,14 +90,14 @@ export async function authorizedAPIRequest<T>(path: string, options: RequestInit
 export async function updateProfile(name: string, avatar?: File): Promise<User> {
   const revision = generation;
   const userID = state.user?.id;
-  let options: RequestInit;
+  let options: APIRequestOptions;
   if (avatar) {
     const body = new FormData();
     body.set("avatar", avatar);
     if (name) body.set("name", name);
-    options = { method: "POST", body };
+    options = { method: "POST", data: body };
   } else {
-    options = { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name }) };
+    options = { method: "PATCH", data: { name } };
   }
   const user = await authorizedRequest<User>(avatar ? "avatar" : "profile", options);
   if (revision !== generation || state.status !== "authenticated" || state.user.id !== userID) {

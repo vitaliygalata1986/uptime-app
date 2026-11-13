@@ -19,5 +19,5 @@ export async function uploadFile(file: File): Promise<UploadedFile> {
   if (file.size > MAX_FILE_BYTES) throw new ApiError(413, "file_too_large");
   const body = new FormData();
   body.set("file", file);
-  return authorizedAPIRequest<UploadedFile>("uploads", { method: "POST", body });
+  return authorizedAPIRequest<UploadedFile>("uploads", { method: "POST", data: body });
 }

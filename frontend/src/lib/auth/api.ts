@@ -1,4 +1,4 @@
-import { apiRequest, ApiError } from "../api";
+import { apiRequest, ApiError, type APIRequestOptions } from "../api";
 
 export { ApiError, fileURL as avatarURL } from "../api";
 
@@ -17,15 +17,14 @@ export interface AuthResult {
   expires_in: number;
 }
 
-export function request<T>(path: string, options: RequestInit = {}): Promise<T> {
+export function request<T>(path: string, options: APIRequestOptions = {}): Promise<T> {
   return apiRequest<T>(`auth/${path}`, options);
 }
 
 export function post<T>(path: string, body: object = {}) {
   return request<T>(path, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
+    data: body,
   });
 }
 
