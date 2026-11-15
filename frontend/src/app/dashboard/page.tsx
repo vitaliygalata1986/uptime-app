@@ -1,4 +1,4 @@
-import { MonitorDashboard } from '@/components/monitors/dashboard';
+import { MonitorDashboard } from '../components/monitors/dashboard';
 
 // This page renders only after the auth guard restores the client session.
 
