@@ -24,3 +24,11 @@ Validate changes using the affected project's checks. For changes spanning both 
 Apply these rules only when starting a new task. Continue the current task in its existing branch and PR without restarting the workflow.
 
 Details in file: [docs/rules/github-flow.md](docs/rules/github-flow.md).
+
+## When committing
+
+Use rules in file: [docs/rules/commit.md](docs/rules/commit.md).
+
+## When creating Pull Request Workflow
+
+Use rules in file: [docs/rules/pr.md](docs/rules/pr.md).
