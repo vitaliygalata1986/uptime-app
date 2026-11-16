@@ -29,6 +29,6 @@ Details in file: [docs/rules/github-flow.md](docs/rules/github-flow.md).
 
 Use rules in file: [docs/rules/commit.md](docs/rules/commit.md).
 
-## When creating or updating pull requests
+## When creating Pull Request Workflow
 
 Use rules in file: [docs/rules/pr.md](docs/rules/pr.md).
