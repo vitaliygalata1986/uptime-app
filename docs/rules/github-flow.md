@@ -8,11 +8,6 @@ Apply this workflow only when starting a new, separate task, and follow it throu
 - Name task branches `feat/<nazvanie-zadachi>` for new features and other planned changes, or `fix/<nazvanie-zadachi>` for bug fixes. Write the task name in lowercase Latin transliteration with hyphens between words, for example `feat/redaktirovanie-profilya` or `fix/sohranenie-imeni`.
 - Keep each branch focused on one task. Do not commit task changes directly to the default branch.
 - After completing the task and passing the relevant checks, push the branch and open a pull request into the default branch. Merge completed work through the pull request after review and successful required checks.
-- Use Conventional Commits: `feat`, `fix`, `refactor`, `test`, `docs`, or `chore`.
-- Keep the subject at most 72 characters and use the imperative mood.
-- Do not use emoji or filler such as "significantly improved".
-- Include a body only when needed to explain why, not what.
-- Keep one logical step per commit.
 
 ### Pull Request Workflow
 
