@@ -6,7 +6,7 @@ This is the Go module `uptime-app/backend`. The entry point is `cmd/api/main.go`
 
 The entry point validates configuration, opens PostgreSQL, applies embedded Goose SQL migrations, wires module handlers, then starts `net/http`. `internal/config/` owns settings, `internal/store/` owns GORM models and transactions, `internal/auth/` owns passwords/JWT/sessions and auth HTTP handlers (including refresh cookies and auth error mapping), and `internal/health/` owns the database readiness handler. `internal/httpapi/` only assembles routes and applies shared HTTP guards, CORS and IP limits. `internal/httpx/` provides shared strict JSON decoding, response helpers and authenticated user ID context, without module dependencies. The Next.js frontend calls auth endpoints with credentials and Bearer access tokens. `internal/monitor/` owns monitor creation and listing through authenticated `POST/GET /api/monitors`; user IDs come from `auth.Handler.RequireUser`, never request bodies. Migration `00004_monitors.sql` stores URL, owner and a positive integer interval in seconds (up to 2147483647). Site polling is not implemented.
 
-Keep each module's controllers in its own `handler.go` alongside its service code; register them in `internal/httpapi/` and construct dependencies in `cmd/api/`. Do not put module request handling, service calls or database readiness queries back in `httpapi`, and do not import `httpapi` from modules. Keep cookie tests alongside the auth handler; route/guard tests and cross-module API integration tests stay in `httpapi`.
+Keep each module's controllers in its own `handler.go` alongside its service code (for example, `internal/auth/handler.go` and `internal/health/handler.go`); register them in `internal/httpapi/` and construct dependencies in `cmd/api/`. Do not put module request handling, service calls or database readiness queries back in `httpapi`, and do not import `httpapi` from modules. Keep cookie tests alongside the auth handler; route/guard tests and cross-module API integration tests stay in `httpapi`.
 
 Monitor creation is limited to 100 records per owner. Keep quota checking and insertion atomic under the owner row lock in `store.CreateMonitor`. Lists use keyset pagination on `(created_at, id)`, 20 records per page, and always filter by the authenticated owner. Register routes by HTTP method, using that table for CORS and `Allow`. Monitor POST/GET rate limits are 10/60 per user per minute after authentication; counters are process-local, while the database quota persists.
 
@@ -20,11 +20,13 @@ Run commands from `backend/` with Go 1.27+; Docker builds use Go 1.27.3 without 
 - `go build -o bin/api ./cmd/api`: compile the backend binary.
 - `go vet ./...`: run static analysis.
 - `go test -race ./...`: run unit tests; integration tests skip explicitly unless `TEST_DATABASE_URL` is set to a separate test PostgreSQL.
-- `docker compose -f ../compose.yaml --env-file .env up --build -d`: run API and persistent PostgreSQL 18. Prepare `.env` using README; never commit it.
+- `docker compose -f ../compose.yaml --env-file .env up --build -d`: run API and persistent PostgreSQL 18. Prepare `.env` from `.env.example`; see [README.md](README.md) for setup details. Never commit `.env` or secrets.
 - `docker compose -p uptime-auth-tests -f ../compose.test.yaml up --build --abort-on-container-exit --exit-code-from tests`: build, vet and run all tests against an isolated PostgreSQL in Docker.
 - `docker compose -p uptime-auth-tests -f ../compose.test.yaml down`: remove the temporary test containers after checks.
 
-The current local `.env` sets `API_PORT=8081`: the host API URL is `http://localhost:8081`, with readiness at `/healthz`. Compose and `.env.example` default to host port 8080; Compose sets the container's `HTTP_ADDR=:8080` independently of `API_PORT`. Check `.env` before choosing the host URL for HTTP commands. The 18080 address in the dated verification report is historical.
+Alternatively, from the repository root, run `docker compose --env-file backend/.env up --build -d`. PostgreSQL has no published host port and persists in a named volume.
+
+The current local `.env` sets `API_PORT=8081`: the host API URL is `http://localhost:8081`, with readiness at `http://localhost:8081/healthz`. Compose and `.env.example` default to host port 8080; Compose sets the container's `HTTP_ADDR=:8080` independently of `API_PORT`. Check `.env` before choosing or reporting the host URL. The 18080 address in [the 2026-10-30 verification report](../docs/auth-verification.md) is historical.
 
 ## Coding Style & Naming
 
@@ -34,4 +36,4 @@ Keep ORM calls in `internal/store/` and use public DTOs in responses. Change sch
 
 ## Testing
 
-Use Go's standard `testing` package. Add tests alongside the code as `*_test.go`, using `TestName` functions. No coverage threshold is configured. Run build, vet and race tests when changing backend code. Integration tests create independent schemas in a separate test DB; without that DB, report them as skipped. Verify HTTP through the published API port and persistence across container restarts separately. `/healthz` checks HTTP and database readiness. Run `git diff --check` from the repository root before submitting changes.
+Use Go's standard `testing` package. Add tests alongside the code as `*_test.go`, using `TestName` functions. No coverage threshold is configured. Run build, vet and race tests when changing backend code. Use the independent `compose.test.yaml` project for database integration tests; never point tests at application data. Integration tests create independent schemas in a separate test DB; without that DB, report them as skipped. Verify HTTP through the published API port and persistence across container restarts separately. `/healthz` checks HTTP and database readiness. Run `git diff --check` from the repository root before submitting changes.
