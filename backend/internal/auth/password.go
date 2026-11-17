@@ -12,6 +12,7 @@ import (
 
 const passwordParameters = "m=19456,t=2,p=1"
 
+// HashPassword returns a salted Argon2id hash with the parameters needed for verification.
 func HashPassword(password string) (string, error) {
 	salt := make([]byte, 16)
 	if _, err := rand.Read(salt); err != nil {
@@ -22,6 +23,8 @@ func HashPassword(password string) (string, error) {
 		base64.RawStdEncoding.EncodeToString(salt), base64.RawStdEncoding.EncodeToString(hash)), nil
 }
 
+// VerifyPassword accepts only this application's Argon2id format and parameters.
+// Fixing the parameters also prevents stored input from requesting excessive hash work.
 func VerifyPassword(password, encoded string) bool {
 	parts := strings.Split(encoded, "$")
 	if len(parts) != 6 || parts[0] != "" || parts[1] != "argon2id" || parts[2] != "v=19" || parts[3] != passwordParameters {

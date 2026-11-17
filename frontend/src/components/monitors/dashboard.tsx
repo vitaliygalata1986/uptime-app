@@ -7,6 +7,7 @@ import { CreateMonitorForm } from "./create-monitor-form";
 import { useMonitors } from "./use-monitors";
 import styles from "./dashboard.module.css";
 
+/** Resets monitor data and form state by remounting the dashboard when the authenticated ID changes. */
 export function MonitorDashboard() {
   const auth = useAuth();
   return auth.user ? <AccountMonitors key={auth.user.id} /> : null;

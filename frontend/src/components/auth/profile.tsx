@@ -7,6 +7,7 @@ import { updateProfile } from "@/lib/auth/session";
 import { Avatar } from "./avatar";
 import { useAuth } from "./provider";
 
+/** Keeps draft edits local and remounts the editor when the authenticated account changes. */
 export function Profile() {
   const auth = useAuth();
   return auth.user ? <ProfileEditor key={auth.user.id} user={auth.user} /> : null;

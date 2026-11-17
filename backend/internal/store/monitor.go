@@ -24,6 +24,7 @@ type MonitorCursor struct {
 	ID        uint64    `json:"id"`
 }
 
+// CreateMonitor checks the owner's quota and inserts a validated monitor in one transaction.
 func (s *Store) CreateMonitor(ctx context.Context, monitor *Monitor, quota int) error {
 	return s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		// Lock the owner so concurrent creates cannot both claim the last slot.
@@ -42,10 +43,12 @@ func (s *Store) CreateMonitor(ctx context.Context, monitor *Monitor, quota int) 
 	})
 }
 
+// ListMonitors returns only the owner's rows, newest first, strictly before the optional cursor.
 func (s *Store) ListMonitors(ctx context.Context, userID uint64, before *MonitorCursor, limit int) ([]Monitor, error) {
 	monitors := make([]Monitor, 0)
 	query := s.db.WithContext(ctx).Where("user_id = ?", userID)
 	if before != nil {
+		// ID breaks timestamp ties so inserts at the front cannot shift subsequent pages.
 		query = query.Where("(created_at, id) < (?, ?)", before.CreatedAt, before.ID)
 	}
 	err := query.Order("created_at DESC, id DESC").Limit(limit).Find(&monitors).Error

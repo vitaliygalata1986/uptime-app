@@ -5,6 +5,10 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "./provider";
 import { restore } from "@/lib/auth/session";
 
+/**
+ * Shows children only for the requested client session state, with loading/error and redirect UI.
+ * This controls presentation; the API independently authorizes protected data.
+ */
 export function AuthGate({ children, requireAuth = false }: { children: ReactNode; requireAuth?: boolean }) {
   const auth = useAuth();
   const router = useRouter();

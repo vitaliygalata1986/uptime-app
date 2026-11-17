@@ -9,6 +9,7 @@ interface Props {
   onClose: () => void;
 }
 
+/** Submits a monitor configuration and reports success only while this account's form is mounted. */
 export function CreateMonitorForm({ onCreated, onClose }: Props) {
   const [url, setURL] = useState("");
   const [amount, setAmount] = useState("1");
@@ -17,6 +18,7 @@ export function CreateMonitorForm({ onCreated, onClose }: Props) {
   const [error, setError] = useState("");
   const submitting = useRef(false);
   const mounted = useRef(false);
+  // Floor keeps whole minutes/hours within the API's maximum number of seconds.
   const maxAmount = Math.floor(MAX_INTERVAL_SECONDS / unit);
 
   useEffect(() => {

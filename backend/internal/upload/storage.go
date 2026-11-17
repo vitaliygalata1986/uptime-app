@@ -21,6 +21,7 @@ type Storage struct {
 	prefix string
 }
 
+// NewStorage prepares a local directory with a public URL prefix below /uploads/.
 func NewStorage(dir, prefix string) (*Storage, error) {
 	if !strings.HasPrefix(prefix, "/uploads/") || !strings.HasSuffix(prefix, "/") {
 		return nil, errors.New("invalid upload URL prefix")
@@ -32,7 +33,7 @@ func NewStorage(dir, prefix string) (*Storage, error) {
 }
 
 // Save uses a random server filename and removes partially written files on failure.
-// A .bin extension stores any file type without enabling inline browser execution.
+// Callers must validate image content before selecting .jpg or .png; arbitrary files use .bin.
 func (s *Storage) Save(source io.Reader, extension string) (string, error) {
 	if extension != ".bin" && extension != ".jpg" && extension != ".png" {
 		return "", errors.New("invalid storage extension")
@@ -64,6 +65,7 @@ func (s *Storage) name(url string) (string, bool) {
 	return name, ok && filename.MatchString(name)
 }
 
+// Remove ignores foreign or invalid URLs and missing files, logging other removal failures.
 func (s *Storage) Remove(url string) {
 	name, ok := s.name(url)
 	if !ok {
@@ -74,6 +76,8 @@ func (s *Storage) Remove(url string) {
 	}
 }
 
+// ServeHTTP serves immutable images inline and arbitrary .bin files as sandboxed attachments.
+// Only server-generated filenames under this storage's prefix are accepted.
 func (s *Storage) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	name, ok := s.name(r.URL.Path)
 	if !ok {

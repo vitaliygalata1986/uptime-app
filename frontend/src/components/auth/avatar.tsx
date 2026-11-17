@@ -1,6 +1,7 @@
 import Image from "next/image";
 import { avatarURL, type User } from "@/lib/auth/api";
 
+/** Shows a local preview before the saved avatar, falling back to the account's first initial. */
 export function Avatar({ user, size, preview }: { user: User; size: number; preview?: string }) {
   const source = preview || (user.avatar_url ? avatarURL(user.avatar_url) : "");
   const style = { width: size, height: size, borderRadius: "50%", flexShrink: 0 };

@@ -35,7 +35,8 @@ let child;
 let stopping = false;
 function stop(signal) {
   stopping = true;
-  if (child?.pid) { try { process.kill(-child.pid, signal); } catch { /* уже завершился */ } }
+  // Next.js spawns workers; signal the detached process group so they stop with the launcher.
+  if (child?.pid) { try { process.kill(-child.pid, signal); } catch { /* Процесс мог завершиться между проверкой PID и сигналом. */ } }
 }
 process.on("SIGINT", () => stop("SIGINT"));
 process.on("SIGTERM", () => stop("SIGTERM"));
@@ -53,7 +54,7 @@ try {
   const apiURL = process.env.NEXT_PUBLIC_API_URL || `http://localhost:${port}`;
   let ready = false;
   for (let attempt = 0; attempt < 30 && !stopping; attempt++) {
-    try { ready = (await fetch(`${apiURL}/healthz`, { signal: AbortSignal.timeout(1500) })).ok; } catch { /* ждём запуска */ }
+    try { ready = (await fetch(`${apiURL}/healthz`, { signal: AbortSignal.timeout(1500) })).ok; } catch { /* Опубликованный HTTP-порт может стать доступен позже контейнера. */ }
     if (ready) break;
     await new Promise((resolve) => setTimeout(resolve, 1000));
   }

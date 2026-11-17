@@ -22,6 +22,8 @@ type Config struct {
 	UploadDir      string
 }
 
+// Load reads process environment variables and rejects invalid startup configuration.
+// It does not read a .env file; Compose supplies those values to the process.
 func Load() (Config, error) { return load(os.Getenv) }
 
 func load(get func(string) string) (Config, error) {

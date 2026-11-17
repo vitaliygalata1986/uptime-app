@@ -42,6 +42,7 @@ type API struct {
 	uploads http.HandlerFunc
 }
 
+// New assembles module routes with shared guards, allowed origins and process-local rate limits.
 func New(authHandler *auth.Handler, healthHandler http.Handler, uploadHandler *upload.Handler, monitorHandler *monitor.Handler, cfg config.Config) *API {
 	a := &API{
 		avatars: authHandler.AvatarFile,
@@ -58,6 +59,7 @@ func New(authHandler *auth.Handler, healthHandler http.Handler, uploadHandler *u
 		"/api/auth/avatar":   {http.MethodPost: {authHandler.UploadAvatar, 10}},
 		"/api/uploads":       {http.MethodPost: {authHandler.RequireUser(uploadHandler.Upload), 10}},
 		"/api/monitors": {
+			// Authenticate first so rate limits follow the account across tokens and connections.
 			http.MethodGet:  {authHandler.RequireUser(a.limitUser(monitorHandler.ServeHTTP, 60)), 0},
 			http.MethodPost: {authHandler.RequireUser(a.limitUser(monitorHandler.ServeHTTP, 10)), 0},
 		},
@@ -69,6 +71,7 @@ func New(authHandler *auth.Handler, healthHandler http.Handler, uploadHandler *u
 	return a
 }
 
+// ServeHTTP applies origin, method, content-type and IP guards before dispatching a route.
 func (a *API) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Cache-Control", "no-store")
 	w.Header().Add("Vary", "Origin")
@@ -138,6 +141,7 @@ func (a *API) allow(w http.ResponseWriter, r *http.Request, identity string, lim
 	}
 	key := r.URL.Path + ":" + r.Method + ":" + identity
 	if ok, retry := a.limiter.allow(key, limit, a.now()); !ok {
+		// Round up fractional seconds so clients do not retry before the window ends.
 		w.Header().Set("Retry-After", strconv.Itoa(int(math.Ceil(retry.Seconds()))))
 		httpx.WriteError(w, http.StatusTooManyRequests, "rate_limited", "Too many requests")
 		return false
@@ -166,6 +170,7 @@ func (a *API) preflight(w http.ResponseWriter, r *http.Request, matched methods)
 }
 
 func remoteIP(addr string) string {
+	// Proxy headers are client-controlled unless a trusted proxy policy is explicitly configured.
 	host, _, err := net.SplitHostPort(addr)
 	if err != nil {
 		host = addr

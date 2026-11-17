@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { listMonitors, monitorErrorMessage, type Monitor } from "@/lib/monitors";
 
-// The owning dashboard is keyed by account ID; its data never survives a switch.
+/** Owns monitor loading, retries and cursor pagination; mount under a component keyed by account ID. */
 export function useMonitors() {
   const [monitors, setMonitors] = useState<Monitor[]>([]);
   const [nextCursor, setNextCursor] = useState("");
@@ -45,6 +45,7 @@ export function useMonitors() {
       const page = await listMonitors(nextCursor);
       if (!mounted.current) return;
       setMonitors((current) => {
+        // A newly created monitor may already be present when a pending page arrives.
         const existing = new Set(current.map((monitor) => monitor.id));
         return [...current, ...page.monitors.filter((monitor) => !existing.has(monitor.id))];
       });

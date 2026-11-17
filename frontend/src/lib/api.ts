@@ -1,5 +1,6 @@
 import axios, { type AxiosInstance, type AxiosRequestConfig } from "axios";
 
+/** Normalized API failure; status 0 denotes a transport or response-format error. */
 export class ApiError extends Error {
   constructor(public status: number, public code: string) {
     super(code);
@@ -8,12 +9,14 @@ export class ApiError extends Error {
 
 const baseURL = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:8081").replace(/\/$/, "");
 
+/** Resolves an API-provided root-relative upload path against the API origin. */
 export function fileURL(path: string): string {
   return `${baseURL}${path}`;
 }
 
 export type APIRequestOptions = Pick<AxiosRequestConfig, "method" | "headers" | "data" | "signal">;
 
+/** Creates a cookie-enabled JSON client; Bearer injection is configured by the session module. */
 export function createAPIClient(): AxiosInstance {
   return axios.create({
     baseURL: `${baseURL}/api/`,
@@ -26,6 +29,7 @@ export function createAPIClient(): AxiosInstance {
 
 const publicClient = createAPIClient();
 
+/** Returns the response body (undefined for 204) and normalizes Axios failures to ApiError. */
 export async function apiRequest<T>(path: string, options: APIRequestOptions = {}, client = publicClient): Promise<T> {
   try {
     const response = await client.request<T>({ ...options, url: path });

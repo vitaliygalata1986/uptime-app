@@ -6,6 +6,7 @@ import { signIn } from "@/lib/auth/session";
 import { errorMessage } from "@/lib/auth/api";
 import { AuthGate } from "./gate";
 
+/** Validates credentials for the selected auth flow; AuthGate redirects an already signed-in user. */
 export function AuthForm({ mode }: { mode: "login" | "register" }) {
   const registering = mode === "register";
   const [pending, setPending] = useState(false);

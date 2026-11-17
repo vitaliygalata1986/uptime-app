@@ -23,6 +23,7 @@ type Handler struct {
 	avatars *AvatarStorage
 }
 
+// NewHandler configures refresh-cookie security and optional avatar storage.
 func NewHandler(service *Service, secureCookies bool, avatars *AvatarStorage) *Handler {
 	now := time.Now
 	if service.Now != nil {
@@ -31,10 +32,12 @@ func NewHandler(service *Service, secureCookies bool, avatars *AvatarStorage) *H
 	return &Handler{service: service, secure: secureCookies, now: now, avatars: avatars}
 }
 
+// Register accepts JSON credentials and returns 201 with public auth data and an HttpOnly refresh cookie.
 func (h *Handler) Register(w http.ResponseWriter, r *http.Request) {
 	h.credentials(w, r, h.service.Register, http.StatusCreated)
 }
 
+// Login accepts JSON credentials and sets a refresh cookie for the new session.
 func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 	h.credentials(w, r, h.service.Login, http.StatusOK)
 }
@@ -57,6 +60,8 @@ func (h *Handler) credentials(w http.ResponseWriter, r *http.Request, action fun
 	httpx.WriteJSON(w, status, result)
 }
 
+// Refresh rotates the HttpOnly refresh cookie and returns a new access JWT.
+// Unauthorized refreshes clear the cookie; the JSON body must be an empty object.
 func (h *Handler) Refresh(w http.ResponseWriter, r *http.Request) {
 	raw, ok := h.sessionToken(w, r)
 	if !ok {
@@ -74,6 +79,7 @@ func (h *Handler) Refresh(w http.ResponseWriter, r *http.Request) {
 	httpx.WriteJSON(w, http.StatusOK, result)
 }
 
+// Logout accepts an empty JSON object, revokes the cookie's session and clears the cookie.
 func (h *Handler) Logout(w http.ResponseWriter, r *http.Request) {
 	raw, ok := h.sessionToken(w, r)
 	if !ok {
@@ -98,6 +104,7 @@ func (h *Handler) sessionToken(w http.ResponseWriter, r *http.Request) (string, 
 	return "", true
 }
 
+// Me returns the current public account identified by the Bearer access JWT.
 func (h *Handler) Me(w http.ResponseWriter, r *http.Request) {
 	parts := strings.Fields(r.Header.Get("Authorization"))
 	if len(parts) != 2 || !strings.EqualFold(parts[0], "Bearer") {
@@ -112,6 +119,7 @@ func (h *Handler) Me(w http.ResponseWriter, r *http.Request) {
 	httpx.WriteJSON(w, http.StatusOK, user)
 }
 
+// UpdateProfile accepts only a name and derives the account from the Bearer access JWT.
 func (h *Handler) UpdateProfile(w http.ResponseWriter, r *http.Request) {
 	parts := strings.Fields(r.Header.Get("Authorization"))
 	if len(parts) != 2 || !strings.EqualFold(parts[0], "Bearer") {
@@ -160,6 +168,7 @@ func (h *Handler) fail(w http.ResponseWriter, err error) {
 	}
 }
 
+// AvatarFile serves validated stored images publicly, or returns 404 when storage is disabled.
 func (h *Handler) AvatarFile(w http.ResponseWriter, r *http.Request) {
 	if h.avatars == nil {
 		http.NotFound(w, r)
@@ -168,7 +177,8 @@ func (h *Handler) AvatarFile(w http.ResponseWriter, r *http.Request) {
 	h.avatars.files.ServeHTTP(w, r)
 }
 
-// UploadAvatar saves the image and optional name together only when the user submits the profile.
+// UploadAvatar accepts one JPEG/PNG of at most 5 MiB and an optional validated name.
+// It saves their database changes together and removes the new file if persistence fails.
 func (h *Handler) UploadAvatar(w http.ResponseWriter, r *http.Request) {
 	parts := strings.Fields(r.Header.Get("Authorization"))
 	if len(parts) != 2 || !strings.EqualFold(parts[0], "Bearer") {
@@ -184,6 +194,7 @@ func (h *Handler) UploadAvatar(w http.ResponseWriter, r *http.Request) {
 		httpx.WriteError(w, 503, "storage_unavailable", "Avatar storage unavailable")
 		return
 	}
+	// Reserve 64 KiB for multipart boundaries and fields; the file itself still has a 5 MiB limit.
 	r.Body = http.MaxBytesReader(w, r.Body, MaxAvatarBytes+(64<<10))
 	err = r.ParseMultipartForm(MaxAvatarBytes + (64 << 10))
 	if r.MultipartForm != nil {
@@ -247,11 +258,12 @@ func (h *Handler) UploadAvatar(w http.ResponseWriter, r *http.Request) {
 		h.fail(w, err)
 		return
 	}
+	// Keep the previous image available until its replacement is committed.
 	h.avatars.remove(previous)
 	httpx.WriteJSON(w, http.StatusOK, publicUser(updated))
 }
 
-// RequireUser checks the access token and current account for other feature routes.
+// RequireUser verifies the Bearer JWT and current account, then sets the trusted context user ID.
 func (h *Handler) RequireUser(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		parts := strings.Fields(r.Header.Get("Authorization"))

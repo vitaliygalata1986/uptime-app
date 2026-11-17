@@ -18,6 +18,7 @@ var errInvalidAvatar = errors.New("invalid avatar image")
 // AvatarStorage validates images before writing them through shared file storage.
 type AvatarStorage struct{ files *upload.Storage }
 
+// NewAvatarStorage prepares local storage under the public avatar URL prefix.
 func NewAvatarStorage(dir string) (*AvatarStorage, error) {
 	files, err := upload.NewStorage(dir, avatarPrefix)
 	if err != nil {
@@ -27,6 +28,7 @@ func NewAvatarStorage(dir string) (*AvatarStorage, error) {
 }
 
 func (s *AvatarStorage) save(data []byte) (string, error) {
+	// Reject excessive dimensions before full decoding can allocate the pixel buffer.
 	cfg, format, err := image.DecodeConfig(bytes.NewReader(data))
 	if err != nil || (format != "jpeg" && format != "png") || cfg.Width < 1 || cfg.Height < 1 || cfg.Width > 4096 || cfg.Height > 4096 || cfg.Width*cfg.Height > 16_000_000 {
 		return "", errInvalidAvatar
@@ -35,6 +37,7 @@ func (s *AvatarStorage) save(data []byte) (string, error) {
 	if err != nil {
 		return "", errInvalidAvatar
 	}
+	// Re-encode decoded pixels so trailing data and original metadata are not published.
 	extension := ".png"
 	var encoded bytes.Buffer
 	if format == "jpeg" {

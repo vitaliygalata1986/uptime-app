@@ -41,6 +41,8 @@ type Page struct {
 	NextCursor string    `json:"next_cursor"`
 }
 
+// ValidateURL trims and validates an HTTP(S) URL without credentials, fragments or whitespace.
+// It checks syntax only; it neither resolves nor requests the target.
 func ValidateURL(raw string) (string, error) {
 	value := strings.TrimSpace(raw)
 	if value == "" || len(value) > 2048 || strings.ContainsFunc(value, func(r rune) bool {
@@ -61,6 +63,7 @@ func ValidateURL(raw string) (string, error) {
 	return value, nil
 }
 
+// Create validates and stores a monitor for the trusted owner within their quota; it does not poll.
 func (s *Service) Create(ctx context.Context, userID uint64, rawURL string, interval int) (Monitor, error) {
 	value, err := ValidateURL(rawURL)
 	if err != nil {
@@ -76,6 +79,8 @@ func (s *Service) Create(ctx context.Context, userID uint64, rawURL string, inte
 	return publicMonitor(row), nil
 }
 
+// List returns up to PageSize owner-scoped monitors and a cursor, empty on the final page.
+// A nonempty input cursor must encode a valid timestamp and positive PostgreSQL BIGINT ID.
 func (s *Service) List(ctx context.Context, userID uint64, cursor string) (Page, error) {
 	var before *store.MonitorCursor
 	if cursor != "" {
@@ -89,6 +94,7 @@ func (s *Service) List(ctx context.Context, userID uint64, cursor string) (Page,
 		}
 		before = &value
 	}
+	// One extra row tells us whether to offer another page without a separate count query.
 	rows, err := s.Store.ListMonitors(ctx, userID, before, PageSize+1)
 	if err != nil {
 		return Page{}, err

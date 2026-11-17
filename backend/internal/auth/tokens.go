@@ -24,6 +24,7 @@ type Tokens struct {
 	Now      func() time.Time
 }
 
+// Issue signs a 15-minute access JWT for the configured issuer and audience.
 func (t *Tokens) Issue(userID uint64) (string, error) {
 	now := t.Now().UTC()
 	claims := jwt.RegisteredClaims{
@@ -34,6 +35,7 @@ func (t *Tokens) Issue(userID uint64) (string, error) {
 	return jwt.NewWithClaims(jwt.SigningMethodHS256, claims).SignedString(t.Secret)
 }
 
+// Parse verifies the access JWT's signature, claims and expiry, returning a nonzero account ID.
 func (t *Tokens) Parse(raw string) (uint64, error) {
 	claims := new(jwt.RegisteredClaims)
 	token, err := jwt.ParseWithClaims(raw, claims, func(token *jwt.Token) (any, error) {
@@ -50,6 +52,7 @@ func (t *Tokens) Parse(raw string) (uint64, error) {
 	return id, nil
 }
 
+// RandomToken encodes 32 cryptographically random bytes without URL-unsafe characters or padding.
 func RandomToken() (string, error) {
 	b := make([]byte, 32)
 	if _, err := rand.Read(b); err != nil {
@@ -58,11 +61,13 @@ func RandomToken() (string, error) {
 	return base64.RawURLEncoding.EncodeToString(b), nil
 }
 
+// ValidRefresh checks token encoding and length; it does not establish a valid session.
 func ValidRefresh(raw string) bool {
 	b, err := base64.RawURLEncoding.Strict().DecodeString(raw)
 	return err == nil && len(b) == 32
 }
 
+// RefreshHash derives the database lookup key so raw refresh tokens need not be stored.
 func RefreshHash(raw string) string {
 	hash := sha256.Sum256([]byte(raw))
 	return hex.EncodeToString(hash[:])

@@ -30,10 +30,12 @@ func Decode(w http.ResponseWriter, r *http.Request, target any) error {
 	return nil
 }
 
+// WriteError sends the shared error envelope consumed by frontend API clients.
 func WriteError(w http.ResponseWriter, status int, code, message string) {
 	WriteJSON(w, status, map[string]any{"error": map[string]string{"code": code, "message": message}})
 }
 
+// WriteJSON commits status and encodes value in an application/json response.
 func WriteJSON(w http.ResponseWriter, status int, value any) {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.WriteHeader(status)

@@ -14,10 +14,12 @@ type Handler struct {
 	service *Service
 }
 
+// NewHandler binds monitor HTTP requests to the service; route assembly supplies auth guards.
 func NewHandler(service *Service) *Handler {
 	return &Handler{service: service}
 }
 
+// ServeHTTP lists or creates monitors using only the verified owner ID from the request context.
 func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	userID := httpx.UserID(r.Context())
 	if userID == 0 {

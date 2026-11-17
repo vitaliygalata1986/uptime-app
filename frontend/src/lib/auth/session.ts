@@ -11,6 +11,7 @@ type State =
 export const initialState: State = { status: "checking", user: null, error: null };
 let state: State = initialState;
 let access: { token: string; expires: number } | null = null;
+// Account transitions invalidate in-flight responses; profile saves also invalidate older /me reads.
 let generation = 0;
 let profileGeneration = 0;
 let initialized = false;
@@ -20,15 +21,18 @@ let channel: BroadcastChannel | null = null;
 const listeners = new Set<() => void>();
 const authorizedClient = createAPIClient();
 
-// Read the current in-memory token immediately before dispatch, including retries.
+// Dispatch-time injection lets retries use the refreshed token without keeping stale caller headers.
 authorizedClient.interceptors.request.use((config) => {
   if (!access) throw new ApiError(401, "session_changed");
   config.headers.set("Authorization", `Bearer ${access.token}`);
   return config;
 }, (error: unknown) => { throw error; }, { synchronous: true });
 
+/** Returns the stable client snapshot consumed by useSyncExternalStore. */
 export const getSnapshot = () => state;
+/** Keeps server rendering and initial hydration free of browser-specific session data. */
 export const getServerSnapshot = () => initialState;
+/** Subscribes to session changes and returns the cleanup callback required by React. */
 export function subscribe(listener: () => void) {
   listeners.add(listener);
   return () => { listeners.delete(listener); };
@@ -42,6 +46,7 @@ function clear() {
   publish({ status: "anonymous", user: null, error: null });
 }
 function save(result: AuthResult) {
+  // Refresh five seconds early to allow for request latency; expires_in is in seconds.
   access = { token: result.access_token, expires: Date.now() + result.expires_in * 1000 - 5000 };
 }
 
@@ -64,10 +69,15 @@ function refresh(): Promise<void> {
   return flight;
 }
 
+/** Calls a protected auth endpoint with the same refresh and account-isolation rules as other APIs. */
 export function authorizedRequest<T>(path: string, options: APIRequestOptions = {}): Promise<T> {
   return authorizedAPIRequest<T>(`auth/${path}`, options);
 }
 
+/**
+ * Calls a relative API endpoint with the in-memory token and at most one retry after 401.
+ * Rejects responses from a previous session generation, including successful retry responses.
+ */
 export async function authorizedAPIRequest<T>(path: string, options: APIRequestOptions = {}): Promise<T> {
   const revision = generation;
   if (!access || access.expires <= Date.now()) await refresh();
@@ -87,6 +97,7 @@ export async function authorizedAPIRequest<T>(path: string, options: APIRequestO
   return result;
 }
 
+/** Saves the name and optional avatar, then publishes the saved user only for the same account. */
 export async function updateProfile(name: string, avatar?: File): Promise<User> {
   const revision = generation;
   const userID = state.user?.id;
@@ -108,6 +119,7 @@ export async function updateProfile(name: string, avatar?: File): Promise<User> 
   return user;
 }
 
+/** Coalesces session restoration and publishes /me unless the account or saved profile changed. */
 export function restore(): Promise<void> {
   if (restoreFlight) return restoreFlight;
   const revision = generation;
@@ -129,6 +141,7 @@ export function restore(): Promise<void> {
   return flight;
 }
 
+/** Serializes login/registration across tabs and publishes the current account after loading /me. */
 export async function signIn(mode: "login" | "register", email: string, password: string) {
   const revision = ++generation;
   await exclusive(async () => {
@@ -143,6 +156,7 @@ export async function signIn(mode: "login" | "register", email: string, password
   if (revision === generation) publish({ status: "authenticated", user, error: null });
 }
 
+/** Revokes the cookie-backed session before clearing local state and notifying other tabs. */
 export async function logout() {
   const revision = ++generation;
   await exclusive(async () => {
@@ -153,6 +167,7 @@ export async function logout() {
   });
 }
 
+/** Installs cross-tab session synchronization and starts restoration once per browser module instance. */
 export function initialize() {
   if (initialized) return;
   initialized = true;

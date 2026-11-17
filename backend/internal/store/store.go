@@ -20,7 +20,7 @@ var (
 	ErrEmailTaken   = errors.New("email already registered")
 )
 
-// Модели хранилища никогда не используются как HTTP-ответы.
+// User includes the password hash; HTTP handlers must return a public DTO instead.
 type User struct {
 	ID           uint64
 	Email        string
@@ -54,6 +54,7 @@ type Store struct {
 //go:embed migrations/*.sql
 var migrations embed.FS
 
+// Open configures and verifies the PostgreSQL pool; the caller must close Store.SQL.
 func Open(ctx context.Context, dsn string) (*Store, error) {
 	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{
 		TranslateError: true, Logger: logger.Default.LogMode(logger.Silent),
@@ -76,6 +77,7 @@ func Open(ctx context.Context, dsn string) (*Store, error) {
 	return &Store{db: db, SQL: pool}, nil
 }
 
+// Migrate applies pending embedded Goose migrations in version order.
 func (s *Store) Migrate(ctx context.Context) error {
 	files, err := fs.Sub(migrations, "migrations")
 	if err != nil {
@@ -89,18 +91,21 @@ func (s *Store) Migrate(ctx context.Context) error {
 	return err
 }
 
+// UserByEmail looks up an already normalized email, returning ErrUnauthorized if absent.
 func (s *Store) UserByEmail(ctx context.Context, email string) (User, error) {
 	var user User
 	err := s.db.WithContext(ctx).Where("email = ?", email).First(&user).Error
 	return user, unauthorizedIfMissing(err)
 }
 
+// UserByID returns ErrUnauthorized when the account no longer exists.
 func (s *Store) UserByID(ctx context.Context, id uint64) (User, error) {
 	var user User
 	err := s.db.WithContext(ctx).First(&user, id).Error
 	return user, unauthorizedIfMissing(err)
 }
 
+// UpdateUserName saves a validated name and returns the row produced by that update.
 func (s *Store) UpdateUserName(ctx context.Context, id uint64, name string) (User, error) {
 	var user User
 	result := s.db.WithContext(ctx).Model(&user).Clauses(clause.Returning{}).
@@ -114,6 +119,8 @@ func (s *Store) UpdateUserName(ctx context.Context, id uint64, name string) (Use
 	return user, nil
 }
 
+// CreateAccount atomically inserts the account, session and hashed refresh token.
+// A duplicate email returns ErrEmailTaken; any insert failure rolls back all three.
 func (s *Store) CreateAccount(ctx context.Context, user *User, session *AuthSession, token *RefreshToken) error {
 	return s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		if err := tx.Create(user).Error; err != nil {
@@ -127,6 +134,7 @@ func (s *Store) CreateAccount(ctx context.Context, user *User, session *AuthSess
 	})
 }
 
+// CreateSession atomically inserts a session and its first hashed refresh token.
 func (s *Store) CreateSession(ctx context.Context, session *AuthSession, token *RefreshToken) error {
 	return s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		return createSession(tx, session, token)
@@ -141,6 +149,8 @@ func createSession(tx *gorm.DB, session *AuthSession, token *RefreshToken) error
 	return tx.Create(token).Error
 }
 
+// Rotate consumes a refresh hash once, preserving the session's original expiry.
+// Reuse revokes the entire session before ErrUnauthorized is returned.
 func (s *Store) Rotate(ctx context.Context, hash, nextHash string, now func() time.Time) (User, AuthSession, error) {
 	var user User
 	var session AuthSession
@@ -153,7 +163,7 @@ func (s *Store) Rotate(ctx context.Context, hash, nextHash string, now func() ti
 		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&session, "id = ?", token.SessionID).Error; err != nil {
 			return unauthorizedIfMissing(err)
 		}
-		// После ожидания блокировки заново читаем токен и текущее время.
+		// За время ожидания блокировки другой запрос мог использовать токен, а сессия — истечь.
 		if err := tx.First(&token, token.ID).Error; err != nil {
 			return err
 		}
@@ -163,7 +173,7 @@ func (s *Store) Rotate(ctx context.Context, hash, nextHash string, now func() ti
 		}
 		if token.UsedAt != nil {
 			denied = true
-			// nil фиксирует отзыв. ErrUnauthorized возвращается только после коммита.
+			// ErrUnauthorized внутри callback откатил бы отзыв; возвращаем его после коммита.
 			return tx.Model(&session).Update("revoked_at", t).Error
 		}
 		if err := tx.Model(&token).Update("used_at", t).Error; err != nil {
@@ -180,6 +190,8 @@ func (s *Store) Rotate(ctx context.Context, hash, nextHash string, now func() ti
 	return user, session, err
 }
 
+// Revoke invalidates the session identified by a refresh hash, including a used token.
+// Missing tokens and already revoked sessions are successful no-ops for idempotent logout.
 func (s *Store) Revoke(ctx context.Context, hash string, now time.Time) error {
 	return s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		var token RefreshToken
@@ -208,6 +220,7 @@ func unauthorizedIfMissing(err error) error {
 }
 
 // UpdateUserAvatar serializes replacements so concurrent saves can safely remove the previous file.
+// It saves the optional validated name in the same transaction and returns the old file URL.
 func (s *Store) UpdateUserAvatar(ctx context.Context, id uint64, url string, name *string) (User, string, error) {
 	var user User
 	var previous string

@@ -21,14 +21,17 @@ type File struct {
 
 type Handler struct{ storage *Storage }
 
+// NewHandler binds upload and public download endpoints to optional file storage.
 func NewHandler(storage *Storage) *Handler { return &Handler{storage: storage} }
 
-// Upload accepts one arbitrary file. Route assembly applies authentication and HTTP guards.
+// Upload accepts exactly one file of any type up to 20 MiB, with no extra fields.
+// Route assembly must apply authentication and HTTP guards before calling it.
 func (h *Handler) Upload(w http.ResponseWriter, r *http.Request) {
 	if h.storage == nil {
 		httpx.WriteError(w, 503, "storage_unavailable", "Upload storage unavailable")
 		return
 	}
+	// Multipart boundaries need their own allowance beyond the 20 MiB file limit.
 	r.Body = http.MaxBytesReader(w, r.Body, MaxFileBytes+(64<<10))
 	err := r.ParseMultipartForm(1 << 20)
 	if r.MultipartForm != nil {
@@ -82,6 +85,7 @@ func (h *Handler) Upload(w http.ResponseWriter, r *http.Request) {
 	httpx.WriteJSON(w, http.StatusCreated, File{URL: url, Name: name, Size: header.Size, ContentType: http.DetectContentType(sample[:n])})
 }
 
+// File serves public attachments, or returns 404 when storage is disabled.
 func (h *Handler) File(w http.ResponseWriter, r *http.Request) {
 	if h.storage == nil {
 		http.NotFound(w, r)

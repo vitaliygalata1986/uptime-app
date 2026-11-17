@@ -17,10 +17,12 @@ export interface AuthResult {
   expires_in: number;
 }
 
+/** Calls a relative auth endpoint with cookies; protected requests use the session module. */
 export function request<T>(path: string, options: APIRequestOptions = {}): Promise<T> {
   return apiRequest<T>(`auth/${path}`, options);
 }
 
+/** Posts a JSON object to an auth endpoint, including the empty object required for refresh/logout. */
 export function post<T>(path: string, body: object = {}) {
   return request<T>(path, {
     method: "POST",
@@ -28,6 +30,7 @@ export function post<T>(path: string, body: object = {}) {
   });
 }
 
+/** Maps auth/profile/upload failures to Russian UI text, with a fallback for unknown errors. */
 export function errorMessage(error: unknown): string {
   if (!(error instanceof ApiError)) return "Не удалось выполнить запрос. Попробуйте ещё раз.";
   if (error.code === "file_too_large") return "Файл должен быть не больше 20 МБ.";

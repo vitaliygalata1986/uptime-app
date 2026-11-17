@@ -39,6 +39,7 @@ type Service struct {
 	dummyHash string
 }
 
+// New prepares authentication, including a dummy password hash for unknown-account logins.
 func New(repository *store.Store, tokens *Tokens) (*Service, error) {
 	dummy, err := RandomToken()
 	if err != nil {
@@ -51,6 +52,8 @@ func New(repository *store.Store, tokens *Tokens) (*Service, error) {
 	return &Service{Store: repository, Tokens: tokens, Now: time.Now, dummyHash: hash}, nil
 }
 
+// Validate normalizes the email and checks UTF-8 credentials, counting password Unicode code points.
+// The password itself is never trimmed or otherwise normalized.
 func Validate(email, password string) (string, error) {
 	email = strings.ToLower(strings.TrimSpace(email))
 	address, err := mail.ParseAddress(email)
@@ -62,6 +65,7 @@ func Validate(email, password string) (string, error) {
 	return email, nil
 }
 
+// Register creates an account and fixed-lifetime session, then issues its access JWT.
 func (s *Service) Register(ctx context.Context, email, password string) (Result, error) {
 	email, err := Validate(email, password)
 	if err != nil {
@@ -85,6 +89,7 @@ func (s *Service) Register(ctx context.Context, email, password string) (Result,
 	return s.result(user, raw, session.ExpiresAt)
 }
 
+// Login verifies credentials and creates an independent session for this sign-in.
 func (s *Service) Login(ctx context.Context, email, password string) (Result, error) {
 	email, err := Validate(email, password)
 	if err != nil {
@@ -92,6 +97,7 @@ func (s *Service) Login(ctx context.Context, email, password string) (Result, er
 	}
 	user, err := s.Store.UserByEmail(ctx, email)
 	if errors.Is(err, store.ErrUnauthorized) {
+		// Выполняем дорогое хеширование и для неизвестного email, чтобы уменьшить разницу во времени ответа.
 		VerifyPassword(password, s.dummyHash)
 		return Result{}, store.ErrUnauthorized
 	}
@@ -111,6 +117,7 @@ func (s *Service) Login(ctx context.Context, email, password string) (Result, er
 	return s.result(user, raw, session.ExpiresAt)
 }
 
+// Refresh rotates a refresh token without extending the session's original 24-hour lifetime.
 func (s *Service) Refresh(ctx context.Context, raw string) (Result, error) {
 	if !ValidRefresh(raw) {
 		return Result{}, store.ErrUnauthorized
@@ -126,6 +133,7 @@ func (s *Service) Refresh(ctx context.Context, raw string) (Result, error) {
 	return s.result(user, next, session.ExpiresAt)
 }
 
+// Logout revokes the refresh session; issued access JWTs remain valid until their expiry.
 func (s *Service) Logout(ctx context.Context, raw string) error {
 	if !ValidRefresh(raw) {
 		return nil
@@ -133,6 +141,7 @@ func (s *Service) Logout(ctx context.Context, raw string) error {
 	return s.Store.Revoke(ctx, RefreshHash(raw), s.Now())
 }
 
+// Me validates an access JWT and loads its current public account, without checking refresh state.
 func (s *Service) Me(ctx context.Context, raw string) (User, error) {
 	id, err := s.Tokens.Parse(raw)
 	if err != nil {
@@ -142,6 +151,7 @@ func (s *Service) Me(ctx context.Context, raw string) (User, error) {
 	return publicUser(user), err
 }
 
+// ValidateName trims surrounding whitespace and accepts 1–100 Unicode code points without controls.
 func ValidateName(name string) (string, error) {
 	name = strings.TrimSpace(name)
 	length := utf8.RuneCountInString(name)
@@ -151,6 +161,7 @@ func ValidateName(name string) (string, error) {
 	return name, nil
 }
 
+// UpdateProfile derives ownership from the access JWT and returns the saved, validated name.
 func (s *Service) UpdateProfile(ctx context.Context, raw, name string) (User, error) {
 	id, err := s.Tokens.Parse(raw)
 	if err != nil {

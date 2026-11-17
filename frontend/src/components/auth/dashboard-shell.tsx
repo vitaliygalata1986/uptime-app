@@ -9,6 +9,7 @@ import { AuthGate } from "./gate";
 import { useAuth } from "./provider";
 import styles from "./dashboard-shell.module.css";
 
+/** Guards dashboard content and provides the current account menu and session logout. */
 export function DashboardShell({ children }: { children: ReactNode }) {
   const auth = useAuth();
   const [pending, setPending] = useState(false);

@@ -15,6 +15,14 @@ Keep changes focused and match the surrounding code style. Backend authenticatio
 
 Validate changes using the affected project's checks. For changes spanning both projects, validate both sides and their interaction. Report which checks ran and distinguish static checks from runtime verification. Run `git diff --check` before submitting changes.
 
+## Code Comments
+
+- Explain why, rather than what the code does when that is already clear.
+- Do not comment on obvious code; prefer clear, accurate names.
+- Add a doc comment to every public function describing its contract.
+- Explain complex arithmetic next to the calculation.
+- Keep comments up to date whenever the related code changes.
+
 ## When starting a new task use GitHub Flow
 
 Apply these rules only when starting a new task. Continue the current task in its existing branch and PR without restarting the workflow.

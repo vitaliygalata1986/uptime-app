@@ -14,7 +14,7 @@ export interface UploadedFile {
 
 export const MAX_FILE_BYTES = 20 * 1024 * 1024;
 
-// Any file type is supported. The returned URL downloads it as an attachment.
+/** Uploads one file of any type up to 20 MiB through the current session; its URL serves an attachment. */
 export async function uploadFile(file: File): Promise<UploadedFile> {
   if (file.size > MAX_FILE_BYTES) throw new ApiError(413, "file_too_large");
   const body = new FormData();

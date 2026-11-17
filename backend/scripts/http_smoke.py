@@ -13,6 +13,7 @@ import urllib.request
 
 
 def main():
+    """Выбирает полную проверку API или фазу проверки сохранности сессии после перезапуска."""
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--url", default="http://localhost:8080")
     parser.add_argument("--origin", default="http://localhost:3000")
@@ -30,6 +31,7 @@ def main():
 
 
 def run(args, directory):
+    """Проверяет выбранную фазу API, сохраняя cookie и состояние в переданном каталоге."""
     directory.mkdir(mode=0o700, parents=True, exist_ok=True)
     cookie_file = directory / "cookies.txt"
     state_file = directory / "state.json"
