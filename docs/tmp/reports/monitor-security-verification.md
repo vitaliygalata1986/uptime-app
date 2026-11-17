@@ -36,5 +36,5 @@ docker compose -p uptime-auth-tests -f ../compose.test.yaml up --build --abort-o
 
 ## Снимки интерфейса
 
-- [Пагинация на широком экране](screenshots/monitor-pagination-desktop.png)
-- [Пагинация на экране 360 px](screenshots/monitor-pagination-mobile.png)
+- [Пагинация на широком экране](../../screenshots/monitor-pagination-desktop.png)
+- [Пагинация на экране 360 px](../../screenshots/monitor-pagination-mobile.png)

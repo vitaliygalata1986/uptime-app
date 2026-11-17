@@ -26,7 +26,7 @@ Run commands from `backend/` with Go 1.27+; Docker builds use Go 1.27.3 without 
 
 Alternatively, from the repository root, run `docker compose --env-file backend/.env up --build -d`. PostgreSQL has no published host port and persists in a named volume.
 
-The current local `.env` sets `API_PORT=8081`: the host API URL is `http://localhost:8081`, with readiness at `http://localhost:8081/healthz`. Compose and `.env.example` default to host port 8080; Compose sets the container's `HTTP_ADDR=:8080` independently of `API_PORT`. Check `.env` before choosing or reporting the host URL. The 18080 address in [the 2026-10-30 verification report](../docs/auth-verification.md) is historical.
+The current local `.env` sets `API_PORT=8081`: the host API URL is `http://localhost:8081`, with readiness at `http://localhost:8081/healthz`. Compose and `.env.example` default to host port 8080; Compose sets the container's `HTTP_ADDR=:8080` independently of `API_PORT`. Check `.env` before choosing or reporting the host URL. The 18080 address in [the 2026-10-30 verification report](../docs/tmp/reports/auth-verification.md) is historical.
 
 ## Coding Style & Naming
 

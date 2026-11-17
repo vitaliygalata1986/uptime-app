@@ -33,6 +33,6 @@ docker compose -p uptime-auth-tests -f ../compose.test.yaml up --build --abort-o
 
 ## Снимки интерфейса
 
-- [Список точек](screenshots/create-monitor-desktop.png)
-- [Форма создания](screenshots/create-monitor-form.png)
-- [Мобильный экран](screenshots/create-monitor-mobile.png)
+- [Список точек](../../screenshots/create-monitor-desktop.png)
+- [Форма создания](../../screenshots/create-monitor-form.png)
+- [Мобильный экран](../../screenshots/create-monitor-mobile.png)
