@@ -26,11 +26,13 @@ Run commands from `backend/` with Go 1.27+; Docker builds use Go 1.27.3 without 
 
 Alternatively, from the repository root, run `docker compose --env-file backend/.env up --build -d`. PostgreSQL has no published host port and persists in a named volume.
 
-The current local `.env` sets `API_PORT=8081`: the host API URL is `http://localhost:8081`, with readiness at `http://localhost:8081/healthz`. Compose and `.env.example` default to host port 8080; Compose sets the container's `HTTP_ADDR=:8080` independently of `API_PORT`. Check `.env` before choosing or reporting the host URL. The 18080 address in [the 2026-10-30 verification report](../docs/auth-verification.md) is historical.
+The current local `.env` sets `API_PORT=8081`: the host API URL is `http://localhost:8081`, with readiness at `http://localhost:8081/healthz`. Compose and `.env.example` default to host port 8080; Compose sets the container's `HTTP_ADDR=:8080` independently of `API_PORT`. Check `.env` before choosing or reporting the host URL. The 18080 address in [the 2026-10-30 verification report](../docs/tmp/reports/auth-verification.md) is historical.
 
 ## Coding Style & Naming
 
 Format Go code with `gofmt`. Use lowercase package names and PascalCase for exported identifiers. Keep executable startup in `cmd/api/` and application logic in focused packages under `internal/`.
+
+For schema or data migrations, follow [the migration guide](../docs/guides/migrations.md) for file layout, SQL templates, application steps, verification and recovery.
 
 Keep ORM calls in `internal/store/` and use public DTOs in responses. Change schema through new versioned SQL migrations, never `AutoMigrate`. Refresh rotation must lock the session, re-read the token and commit reuse revocation before returning `401`; returning that error from a GORM transaction callback would roll back revocation. Keep access TTL at 15 minutes and session expiry fixed at 24 hours from login. Do not trust proxy headers for rate limiting by default.
 

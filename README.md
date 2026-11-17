@@ -8,7 +8,12 @@ uptime-app/
 ├── frontend/         # Next.js: регистрация, вход и кабинет
 ├── compose.yaml      # API и постоянная PostgreSQL 18
 ├── compose.test.yaml # Изолированная PostgreSQL и Go-тесты
-└── docs/auth-plan.md # План и чек-лист реализации
+└── docs/
+    ├── guides/      # Практические инструкции
+    └── tmp/
+        ├── plans/   # Планы реализации
+        ├── reports/ # Отчёты о проверках
+        └── tasks/   # Описания задач
 ```
 
 Для backend нужны Docker и Docker Compose. Подготовьте `backend/.env` по [инструкции backend](backend/README.md), затем из корня:
