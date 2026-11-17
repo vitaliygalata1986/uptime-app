@@ -5,3 +5,7 @@ backend/bin/
 backend/uploads/
 *.cookies
 .vscode/
+
+#testing
+/coverage
+/docs/tmp
