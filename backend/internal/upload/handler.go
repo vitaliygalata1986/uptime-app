@@ -26,6 +26,23 @@ func NewHandler(storage *Storage) *Handler { return &Handler{storage: storage} }
 
 // Upload accepts exactly one file of any type up to 20 MiB, with no extra fields.
 // Route assembly must apply authentication and HTTP guards before calling it.
+//
+// @Summary Upload a file
+// @Tags uploads
+// @Accept mpfd
+// @Produce json
+// @Security BearerAuth
+// @Param Origin header string true "An origin configured in ALLOWED_ORIGINS" example(http://localhost:3000)
+// @Param file formData file true "One file of any type, up to 20 MiB; no extra fields"
+// @Success 201 {object} File
+// @Failure 400 {object} httpx.ErrorResponse "Invalid request or parameters"
+// @Failure 401 {object} httpx.ErrorResponse "Invalid credentials or token"
+// @Failure 403 {object} httpx.ErrorResponse "Origin is missing or forbidden"
+// @Failure 413 {object} httpx.ErrorResponse "File exceeds size limit"
+// @Failure 429 {object} httpx.ErrorResponse "Rate limit exceeded; see Retry-After"
+// @Failure 500 {object} httpx.ErrorResponse "Internal server error"
+// @Failure 503 {object} httpx.ErrorResponse "Storage or database unavailable"
+// @Router /api/uploads [post]
 func (h *Handler) Upload(w http.ResponseWriter, r *http.Request) {
 	if h.storage == nil {
 		httpx.WriteError(w, 503, "storage_unavailable", "Upload storage unavailable")
@@ -86,6 +103,18 @@ func (h *Handler) Upload(w http.ResponseWriter, r *http.Request) {
 }
 
 // File serves public attachments, or returns 404 when storage is disabled.
+//
+// @Summary Download a public attachment
+// @Tags uploads
+// @Produce application/octet-stream
+// @Param file path string true "Server-generated filename from the upload URL"
+// @Success 200 {file} binary "Attachment"
+// @Success 206 {file} binary "Partial attachment for a Range request"
+// @Success 304 "Attachment has not changed"
+// @Failure 403 {object} httpx.ErrorResponse "Origin is forbidden"
+// @Failure 404 {string} string "File not found (plain text)"
+// @Failure 416 {string} string "Invalid byte range (plain text)"
+// @Router /uploads/files/{file} [get]
 func (h *Handler) File(w http.ResponseWriter, r *http.Request) {
 	if h.storage == nil {
 		http.NotFound(w, r)

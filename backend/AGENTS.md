@@ -19,6 +19,8 @@ Run commands from `backend/` with Go 1.27+; Docker builds use Go 1.27.3 without 
 - `go run ./cmd/api`: start the API with exported configuration including `DATABASE_URL`; `.env` is read by Compose, not the binary.
 - `go build -o bin/api ./cmd/api`: compile the backend binary.
 - `go vet ./...`: run static analysis.
+- `go generate .`: regenerate the checked-in Swagger/OpenAPI 2.0 contract and Go registration in `docs/` with pinned swaggo. Update handler annotations and DTOs together; Swagger UI is served at `/swagger/index.html` and its contract at `/swagger/doc.json`.
+- `npm --prefix .. run docs:redoc`: generate `docs/redoc.html` from the current `docs/swagger.json` with pinned Redocly CLI (Node.js 22.13+ or 24+, npm 10+). Run after `go generate .` when the contract changes.
 - `go test -race ./...`: run unit tests; integration tests skip explicitly unless `TEST_DATABASE_URL` is set to a separate test PostgreSQL.
 - `docker compose -f ../compose.yaml --env-file .env up --build -d`: run API and persistent PostgreSQL 18. Prepare `.env` from `.env.example`; see [README.md](README.md) for setup details. Never commit `.env` or secrets.
 - `docker compose -p uptime-auth-tests -f ../compose.test.yaml up --build --abort-on-container-exit --exit-code-from tests`: build, vet and run all tests against an isolated PostgreSQL in Docker.
@@ -35,6 +37,13 @@ Format Go code with `gofmt`. Use lowercase package names and PascalCase for expo
 For schema or data migrations, follow [the migration guide](../docs/guides/migrations.md) for file layout, SQL templates, application steps, verification and recovery.
 
 Keep ORM calls in `internal/store/` and use public DTOs in responses. Change schema through new versioned SQL migrations, never `AutoMigrate`. Refresh rotation must lock the session, re-read the token and commit reuse revocation before returning `401`; returning that error from a GORM transaction callback would roll back revocation. Keep access TTL at 15 minutes and session expiry fixed at 24 hours from login. Do not trust proxy headers for rate limiting by default.
+
+## API Documentation
+
+- Add swaggo annotations to the module controller for every new HTTP route and method. Describe parameters and their requiredness, request and response DTOs, content types, success and error responses, and authentication requirements.
+- Update annotations and DTOs whenever a route's path, method, parameters, validation, authentication or response contract changes. Remove obsolete annotations when removing a route.
+- After any API contract change, run `go generate .` from `backend/` using the pinned generator in `generate.go`, then `npm --prefix .. run docs:redoc`. Include the regenerated `docs/docs.go`, `docs/swagger.json`, `docs/swagger.yaml` and `docs/redoc.html` with the source changes; never edit generated files manually.
+- Check that the regenerated contract matches the registered routes and current handler behavior. Run the backend checks described below and `git diff --check` before submitting changes.
 
 ## Testing
 

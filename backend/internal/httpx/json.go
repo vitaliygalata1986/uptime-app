@@ -30,9 +30,20 @@ func Decode(w http.ResponseWriter, r *http.Request, target any) error {
 	return nil
 }
 
+// ErrorResponse is the shared JSON error envelope.
+type ErrorResponse struct {
+	Error ErrorDetail `json:"error"`
+}
+
+// ErrorDetail identifies an API failure with a stable code and a readable message.
+type ErrorDetail struct {
+	Code    string `json:"code" example:"invalid_request"`
+	Message string `json:"message" example:"Invalid request body"`
+}
+
 // WriteError sends the shared error envelope consumed by frontend API clients.
 func WriteError(w http.ResponseWriter, status int, code, message string) {
-	WriteJSON(w, status, map[string]any{"error": map[string]string{"code": code, "message": message}})
+	WriteJSON(w, status, ErrorResponse{Error: ErrorDetail{Code: code, Message: message}})
 }
 
 // WriteJSON commits status and encodes value in an application/json response.

@@ -23,6 +23,10 @@ Validate changes using the affected project's checks. For changes spanning both 
 - Explain complex arithmetic next to the calculation.
 - Keep comments up to date whenever the related code changes.
 
+## API Documentation
+
+When adding or changing backend API routes, maintain swaggo annotations and regenerate the contract according to [backend/AGENTS.md](backend/AGENTS.md#api-documentation).
+
 ## When starting a new task use GitHub Flow
 
 Apply these rules only when starting a new task. Continue the current task in its existing branch and PR without restarting the workflow.

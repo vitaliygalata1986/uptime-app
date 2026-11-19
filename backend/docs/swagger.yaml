@@ -1,0 +1,704 @@
+basePath: /
+definitions:
+  auth.CredentialsRequest:
+    properties:
+      email:
+        example: user@example.com
+        maxLength: 254
+        type: string
+      password:
+        example: correct horse battery staple
+        maxLength: 128
+        minLength: 8
+        type: string
+    required:
+    - email
+    - password
+    type: object
+  auth.ProfileRequest:
+    properties:
+      name:
+        example: Vitaliy
+        minLength: 1
+        type: string
+    required:
+    - name
+    type: object
+  auth.Result:
+    properties:
+      access_token:
+        type: string
+      expires_in:
+        type: integer
+      token_type:
+        type: string
+      user:
+        $ref: '#/definitions/auth.User'
+    type: object
+  auth.SessionRequest:
+    type: object
+  auth.User:
+    properties:
+      avatar_url:
+        type: string
+      created_at:
+        type: string
+      email:
+        type: string
+      id:
+        type: integer
+      name:
+        type: string
+    type: object
+  health.Response:
+    properties:
+      status:
+        example: ok
+        type: string
+    type: object
+  httpx.ErrorDetail:
+    properties:
+      code:
+        example: invalid_request
+        type: string
+      message:
+        example: Invalid request body
+        type: string
+    type: object
+  httpx.ErrorResponse:
+    properties:
+      error:
+        $ref: '#/definitions/httpx.ErrorDetail'
+    type: object
+  monitor.CreateRequest:
+    properties:
+      interval_seconds:
+        example: 60
+        maximum: 2147483647
+        minimum: 1
+        type: integer
+      url:
+        example: https://example.com
+        maxLength: 2048
+        type: string
+    required:
+    - interval_seconds
+    - url
+    type: object
+  monitor.Monitor:
+    properties:
+      created_at:
+        type: string
+      id:
+        type: integer
+      interval_seconds:
+        type: integer
+      url:
+        type: string
+    type: object
+  monitor.Page:
+    properties:
+      monitors:
+        items:
+          $ref: '#/definitions/monitor.Monitor'
+        type: array
+      next_cursor:
+        type: string
+    type: object
+  upload.File:
+    properties:
+      content_type:
+        type: string
+      name:
+        type: string
+      size:
+        type: integer
+      url:
+        type: string
+    type: object
+info:
+  contact: {}
+  description: Account, upload and monitor API. JSON bodies must be single objects
+    of at most 8 KiB without unknown fields. POST and PATCH require an Origin from
+    ALLOWED_ORIGINS. Access JWTs last 15 minutes; refresh sessions last 24 hours from
+    login. Site polling is not implemented.
+  title: Uptime API
+  version: "1.0"
+paths:
+  /api/auth/avatar:
+    post:
+      consumes:
+      - multipart/form-data
+      description: Accepts exactly one avatar file and at most one name field; persists
+        the avatar and optional name together.
+      parameters:
+      - description: An origin configured in ALLOWED_ORIGINS
+        example: http://localhost:3000
+        in: header
+        name: Origin
+        required: true
+        type: string
+      - description: JPEG or PNG up to 5 MiB, 4096 pixels per side and 16 megapixels
+        in: formData
+        name: avatar
+        required: true
+        type: file
+      - description: Optional name, trimmed to 1-100 Unicode code points without controls
+        in: formData
+        name: name
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/auth.User'
+        "400":
+          description: Invalid request or parameters
+          schema:
+            $ref: '#/definitions/httpx.ErrorResponse'
+        "401":
+          description: Invalid credentials or token
+          schema:
+            $ref: '#/definitions/httpx.ErrorResponse'
+        "403":
+          description: Origin is missing or forbidden
+          schema:
+            $ref: '#/definitions/httpx.ErrorResponse'
+        "413":
+          description: File exceeds size limit
+          schema:
+            $ref: '#/definitions/httpx.ErrorResponse'
+        "429":
+          description: Rate limit exceeded; see Retry-After
+          schema:
+            $ref: '#/definitions/httpx.ErrorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/httpx.ErrorResponse'
+        "503":
+          description: Storage or database unavailable
+          schema:
+            $ref: '#/definitions/httpx.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Upload an avatar and optional name
+      tags:
+      - profile
+  /api/auth/login:
+    post:
+      consumes:
+      - application/json
+      description: Sets an HttpOnly refresh_token cookie scoped to /api/auth. Email
+        is trimmed and lowercased; password is not normalized and must contain 8-128
+        Unicode code points.
+      parameters:
+      - description: An origin configured in ALLOWED_ORIGINS
+        example: http://localhost:3000
+        in: header
+        name: Origin
+        required: true
+        type: string
+      - description: Email and password; no other fields
+        in: body
+        name: credentials
+        required: true
+        schema:
+          $ref: '#/definitions/auth.CredentialsRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/auth.Result'
+        "400":
+          description: Invalid request or parameters
+          schema:
+            $ref: '#/definitions/httpx.ErrorResponse'
+        "401":
+          description: Invalid credentials or token
+          schema:
+            $ref: '#/definitions/httpx.ErrorResponse'
+        "403":
+          description: Origin is missing or forbidden
+          schema:
+            $ref: '#/definitions/httpx.ErrorResponse'
+        "429":
+          description: Rate limit exceeded; see Retry-After
+          schema:
+            $ref: '#/definitions/httpx.ErrorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/httpx.ErrorResponse'
+      summary: Sign in
+      tags:
+      - auth
+  /api/auth/logout:
+    post:
+      consumes:
+      - application/json
+      description: Uses the refresh_token cookie when present; missing or invalid
+        cookies are accepted. Clears the cookie. Existing access JWTs remain valid
+        until expiry.
+      parameters:
+      - description: An origin configured in ALLOWED_ORIGINS
+        example: http://localhost:3000
+        in: header
+        name: Origin
+        required: true
+        type: string
+      - description: Empty JSON object {}
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/auth.SessionRequest'
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: Session revoked and refresh cookie cleared
+        "400":
+          description: Invalid request or parameters
+          schema:
+            $ref: '#/definitions/httpx.ErrorResponse'
+        "403":
+          description: Origin is missing or forbidden
+          schema:
+            $ref: '#/definitions/httpx.ErrorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/httpx.ErrorResponse'
+      summary: Sign out
+      tags:
+      - auth
+  /api/auth/me:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/auth.User'
+        "401":
+          description: Invalid credentials or token
+          schema:
+            $ref: '#/definitions/httpx.ErrorResponse'
+        "403":
+          description: Origin is missing or forbidden
+          schema:
+            $ref: '#/definitions/httpx.ErrorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/httpx.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Get the current account
+      tags:
+      - auth
+  /api/auth/profile:
+    patch:
+      consumes:
+      - application/json
+      parameters:
+      - description: An origin configured in ALLOWED_ORIGINS
+        example: http://localhost:3000
+        in: header
+        name: Origin
+        required: true
+        type: string
+      - description: Name only; trimmed to 1-100 Unicode code points without control
+          characters
+        in: body
+        name: profile
+        required: true
+        schema:
+          $ref: '#/definitions/auth.ProfileRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/auth.User'
+        "400":
+          description: Invalid request or parameters
+          schema:
+            $ref: '#/definitions/httpx.ErrorResponse'
+        "401":
+          description: Invalid credentials or token
+          schema:
+            $ref: '#/definitions/httpx.ErrorResponse'
+        "403":
+          description: Origin is missing or forbidden
+          schema:
+            $ref: '#/definitions/httpx.ErrorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/httpx.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Update the account name
+      tags:
+      - profile
+  /api/auth/refresh:
+    post:
+      consumes:
+      - application/json
+      description: Requires the refresh_token HttpOnly cookie. Rotates it without
+        extending the fixed 24-hour session. Reuse of an old token revokes the session.
+      parameters:
+      - description: An origin configured in ALLOWED_ORIGINS
+        example: http://localhost:3000
+        in: header
+        name: Origin
+        required: true
+        type: string
+      - description: Empty JSON object {}
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/auth.SessionRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/auth.Result'
+        "400":
+          description: Invalid request or parameters
+          schema:
+            $ref: '#/definitions/httpx.ErrorResponse'
+        "401":
+          description: Invalid credentials or token
+          schema:
+            $ref: '#/definitions/httpx.ErrorResponse'
+        "403":
+          description: Origin is missing or forbidden
+          schema:
+            $ref: '#/definitions/httpx.ErrorResponse'
+        "429":
+          description: Rate limit exceeded; see Retry-After
+          schema:
+            $ref: '#/definitions/httpx.ErrorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/httpx.ErrorResponse'
+      summary: Rotate the refresh token
+      tags:
+      - auth
+  /api/auth/register:
+    post:
+      consumes:
+      - application/json
+      description: Sets an HttpOnly refresh_token cookie scoped to /api/auth. Email
+        is trimmed and lowercased; password is not normalized and must contain 8-128
+        Unicode code points.
+      parameters:
+      - description: An origin configured in ALLOWED_ORIGINS
+        example: http://localhost:3000
+        in: header
+        name: Origin
+        required: true
+        type: string
+      - description: Email and password; no other fields
+        in: body
+        name: credentials
+        required: true
+        schema:
+          $ref: '#/definitions/auth.CredentialsRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/auth.Result'
+        "400":
+          description: Invalid request or parameters
+          schema:
+            $ref: '#/definitions/httpx.ErrorResponse'
+        "403":
+          description: Origin is missing or forbidden
+          schema:
+            $ref: '#/definitions/httpx.ErrorResponse'
+        "409":
+          description: Account or monitor quota conflict
+          schema:
+            $ref: '#/definitions/httpx.ErrorResponse'
+        "429":
+          description: Rate limit exceeded; see Retry-After
+          schema:
+            $ref: '#/definitions/httpx.ErrorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/httpx.ErrorResponse'
+      summary: Register an account
+      tags:
+      - auth
+  /api/monitors:
+    get:
+      description: Returns up to 20 monitors, newest first. An empty next_cursor marks
+        the final page. Limited to 60 requests per user per minute.
+      parameters:
+      - description: Opaque next_cursor from the previous page; no other query parameters
+        in: query
+        maxLength: 256
+        name: cursor
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/monitor.Page'
+        "400":
+          description: Invalid request or parameters
+          schema:
+            $ref: '#/definitions/httpx.ErrorResponse'
+        "401":
+          description: Invalid credentials or token
+          schema:
+            $ref: '#/definitions/httpx.ErrorResponse'
+        "403":
+          description: Origin is missing or forbidden
+          schema:
+            $ref: '#/definitions/httpx.ErrorResponse'
+        "429":
+          description: Rate limit exceeded; see Retry-After
+          schema:
+            $ref: '#/definitions/httpx.ErrorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/httpx.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: List the current account monitors
+      tags:
+      - monitors
+    post:
+      consumes:
+      - application/json
+      description: Stores a monitor without polling the target. At most 100 monitors
+        per account; limited to 10 requests per user per minute.
+      parameters:
+      - description: An origin configured in ALLOWED_ORIGINS
+        example: http://localhost:3000
+        in: header
+        name: Origin
+        required: true
+        type: string
+      - description: HTTP(S) URL without credentials or fragment and a positive integer
+          interval in seconds
+        in: body
+        name: monitor
+        required: true
+        schema:
+          $ref: '#/definitions/monitor.CreateRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/monitor.Monitor'
+        "400":
+          description: Invalid request or parameters
+          schema:
+            $ref: '#/definitions/httpx.ErrorResponse'
+        "401":
+          description: Invalid credentials or token
+          schema:
+            $ref: '#/definitions/httpx.ErrorResponse'
+        "403":
+          description: Origin is missing or forbidden
+          schema:
+            $ref: '#/definitions/httpx.ErrorResponse'
+        "409":
+          description: Account or monitor quota conflict
+          schema:
+            $ref: '#/definitions/httpx.ErrorResponse'
+        "429":
+          description: Rate limit exceeded; see Retry-After
+          schema:
+            $ref: '#/definitions/httpx.ErrorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/httpx.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Create a monitor
+      tags:
+      - monitors
+  /api/uploads:
+    post:
+      consumes:
+      - multipart/form-data
+      parameters:
+      - description: An origin configured in ALLOWED_ORIGINS
+        example: http://localhost:3000
+        in: header
+        name: Origin
+        required: true
+        type: string
+      - description: One file of any type, up to 20 MiB; no extra fields
+        in: formData
+        name: file
+        required: true
+        type: file
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/upload.File'
+        "400":
+          description: Invalid request or parameters
+          schema:
+            $ref: '#/definitions/httpx.ErrorResponse'
+        "401":
+          description: Invalid credentials or token
+          schema:
+            $ref: '#/definitions/httpx.ErrorResponse'
+        "403":
+          description: Origin is missing or forbidden
+          schema:
+            $ref: '#/definitions/httpx.ErrorResponse'
+        "413":
+          description: File exceeds size limit
+          schema:
+            $ref: '#/definitions/httpx.ErrorResponse'
+        "429":
+          description: Rate limit exceeded; see Retry-After
+          schema:
+            $ref: '#/definitions/httpx.ErrorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/httpx.ErrorResponse'
+        "503":
+          description: Storage or database unavailable
+          schema:
+            $ref: '#/definitions/httpx.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Upload a file
+      tags:
+      - uploads
+  /healthz:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/health.Response'
+        "403":
+          description: Origin is missing or forbidden
+          schema:
+            $ref: '#/definitions/httpx.ErrorResponse'
+        "503":
+          description: Storage or database unavailable
+          schema:
+            $ref: '#/definitions/httpx.ErrorResponse'
+      summary: Check database readiness
+      tags:
+      - health
+  /uploads/avatars/{file}:
+    get:
+      parameters:
+      - description: Server-generated filename from avatar_url
+        in: path
+        name: file
+        required: true
+        type: string
+      produces:
+      - image/jpeg
+      - image/png
+      responses:
+        "200":
+          description: JPEG or PNG image
+          schema:
+            type: file
+        "206":
+          description: Partial image for a Range request
+          schema:
+            type: file
+        "304":
+          description: Image has not changed
+        "403":
+          description: Origin is forbidden
+          schema:
+            $ref: '#/definitions/httpx.ErrorResponse'
+        "404":
+          description: File not found (plain text)
+          schema:
+            type: string
+        "416":
+          description: Invalid byte range (plain text)
+          schema:
+            type: string
+      summary: Download a public avatar
+      tags:
+      - profile
+  /uploads/files/{file}:
+    get:
+      parameters:
+      - description: Server-generated filename from the upload URL
+        in: path
+        name: file
+        required: true
+        type: string
+      produces:
+      - application/octet-stream
+      responses:
+        "200":
+          description: Attachment
+          schema:
+            type: file
+        "206":
+          description: Partial attachment for a Range request
+          schema:
+            type: file
+        "304":
+          description: Attachment has not changed
+        "403":
+          description: Origin is forbidden
+          schema:
+            $ref: '#/definitions/httpx.ErrorResponse'
+        "404":
+          description: File not found (plain text)
+          schema:
+            type: string
+        "416":
+          description: Invalid byte range (plain text)
+          schema:
+            type: string
+      summary: Download a public attachment
+      tags:
+      - uploads
+securityDefinitions:
+  BearerAuth:
+    description: Enter Bearer followed by a space and the access JWT. Refresh tokens
+      are HttpOnly cookies, never JSON fields.
+    in: header
+    name: Authorization
+    type: apiKey
+swagger: "2.0"

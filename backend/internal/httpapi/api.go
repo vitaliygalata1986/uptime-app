@@ -10,6 +10,9 @@ import (
 	"strings"
 	"time"
 
+	httpSwagger "github.com/swaggo/http-swagger/v2"
+
+	_ "uptime-app/backend/docs"
 	"uptime-app/backend/internal/auth"
 	"uptime-app/backend/internal/config"
 	"uptime-app/backend/internal/httpx"
@@ -40,6 +43,7 @@ type API struct {
 	now     func() time.Time
 	avatars http.HandlerFunc
 	uploads http.HandlerFunc
+	swagger http.HandlerFunc
 }
 
 // New assembles module routes with shared guards, allowed origins and process-local rate limits.
@@ -47,6 +51,7 @@ func New(authHandler *auth.Handler, healthHandler http.Handler, uploadHandler *u
 	a := &API{
 		avatars: authHandler.AvatarFile,
 		uploads: uploadHandler.File,
+		swagger: httpSwagger.Handler(httpSwagger.URL("/swagger/doc.json")),
 		origins: make(map[string]bool), limiter: newLimiter(), now: time.Now,
 	}
 	a.routes = map[string]methods{
@@ -91,6 +96,9 @@ func (a *API) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	if strings.HasPrefix(r.URL.Path, "/uploads/files/") {
 		matched, ok = methods{http.MethodGet: {a.uploads, 0}}, true
+	}
+	if strings.HasPrefix(r.URL.Path, "/swagger/") {
+		matched, ok = methods{http.MethodGet: {a.swagger, 0}}, true
 	}
 	if !ok {
 		httpx.WriteError(w, http.StatusNotFound, "not_found", "Route not found")

@@ -20,6 +20,14 @@ import (
 	"uptime-app/backend/internal/upload"
 )
 
+// @title Uptime API
+// @version 1.0
+// @description Account, upload and monitor API. JSON bodies must be single objects of at most 8 KiB without unknown fields. POST and PATCH require an Origin from ALLOWED_ORIGINS. Access JWTs last 15 minutes; refresh sessions last 24 hours from login. Site polling is not implemented.
+// @BasePath /
+// @securityDefinitions.apikey BearerAuth
+// @in header
+// @name Authorization
+// @description Enter Bearer followed by a space and the access JWT. Refresh tokens are HttpOnly cookies, never JSON fields.
 func main() {
 	if err := run(); err != nil {
 		slog.Error("API stopped", "error", err)

@@ -76,6 +76,34 @@ docker compose -f ../compose.yaml --env-file .env up -d
 
 Для запуска без контейнера нужны Go 1.27+ и доступная PostgreSQL. Экспортируйте настройки из таблицы, включая `DATABASE_URL`, и выполните `go run ./cmd/api`. Приложение само не читает `.env`: его обрабатывает Compose.
 
+## Swagger / OpenAPI
+
+Контракт генерируется из swaggo-аннотаций контроллеров в формате **Swagger / OpenAPI 2.0**. Все 13 операций описаны в [docs/swagger.json](docs/swagger.json) и [docs/swagger.yaml](docs/swagger.yaml). Swagger UI доступен на `http://localhost:8081/swagger/index.html`, JSON-контракт — на `/swagger/doc.json`. Адрес API берётся из текущего адреса страницы: порт не зашит в контракт.
+
+После изменения маршрутов, DTO или аннотаций выполните из `backend/`:
+
+```sh
+go generate .
+```
+
+Команда использует закреплённый `swag v1.16.6` и обновляет `docs/docs.go`, `docs/swagger.json` и `docs/swagger.yaml`; эти файлы нужно коммитить вместе с исходными изменениями. Для первого запуска нужен доступ к Go module proxy. Без системного Go 1.27+ можно использовать Docker (файлы создаются от текущего пользователя):
+
+```sh
+docker run --rm --user "$(id -u):$(id -g)" \
+  -e GOCACHE=/tmp/go-cache -e GOPATH=/tmp/go \
+  -v "$PWD:/app" -w /app golang:1.27.3-bookworm go generate .
+```
+
+В Swagger UI поле **Authorize** принимает `Bearer <access_token>`. Refresh и logout используют HttpOnly-cookie `refresh_token`, отправляют `{}` и требуют `Content-Type: application/json`. Для **Try it out** добавьте origin самого API (например, `http://localhost:8081`) в `ALLOWED_ORIGINS` и перезапустите API; браузер устанавливает `Origin` самостоятельно. Просмотр документации этого не требует. Ограничения Origin, аутентификации и частоты запросов действуют и для запросов из UI.
+
+Для генерации ReDoc HTML из текущего `docs/swagger.json` выполните из `backend/` (Node.js 22.13+ или 24+, npm 10+):
+
+```sh
+npm --prefix .. run docs:redoc
+```
+
+Из корня репозитория та же команда — `npm run docs:redoc`. Закреплённый Redocly CLI `2.81.0` создаёт [docs/redoc.html](docs/redoc.html) со встроенными контрактом и скриптом ReDoc. Файл можно открыть напрямую в браузере или разместить на статическом хостинге. При первом запуске генератора нужен доступ к npm; API для просмотра файла запускать не требуется. После обновления Swagger-контракта повторите команду и включите обновлённый HTML в тот же коммит.
+
 ## API и сроки жизни
 
 | Метод | Маршрут | Результат |
