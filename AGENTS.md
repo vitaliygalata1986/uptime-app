@@ -35,7 +35,7 @@ Details in file: [docs/rules/github-flow.md](docs/rules/github-flow.md).
 
 ## When committing
 
-Use rules in file: [docs/rules/commit.md](docs/rules/commit.md).
+Use the [commit skill](.codex/skills/commit/SKILL.md).
 
 ## When creating Pull Request Workflow
 
