@@ -30,7 +30,7 @@ Global API metadata and the Bearer security definition live in `backend/cmd/api/
 After synchronizing source annotations and DTOs with the routes, run [scripts/sync-docs.sh](scripts/sync-docs.sh) from the repository root:
 
 ```bash
-bash .codex/skills/swaggo-openapi/scripts/sync-docs.sh
+bash .agents/skills/swaggo-openapi/scripts/sync-docs.sh
 ```
 
 The script resolves the repository from its own location, so it also works by absolute path from another working directory. It runs `go generate .` from `backend/`, then immediately runs `npm --prefix .. run docs:redoc` only if contract generation succeeds. Any failed step stops the script with a nonzero exit code. It requires the Go and Node.js/npm versions specified in `backend/AGENTS.md` on `PATH`.

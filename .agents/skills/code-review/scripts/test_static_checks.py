@@ -54,7 +54,7 @@ class WorkingSnapshotTests(unittest.TestCase):
         self.temporary = tempfile.TemporaryDirectory(prefix="uptime-review-tests-")
         self.addCleanup(self.temporary.cleanup)
         self.root = Path(self.temporary.name)
-        self.helper = self.root / ".codex/skills/code-review/scripts/static_checks.py"
+        self.helper = self.root / ".agents/skills/code-review/scripts/static_checks.py"
         self.helper.parent.mkdir(parents=True)
         self.helper.write_bytes(HELPER.read_bytes())
         for args in (("init", "-q"), ("add", "."), ("-c", "user.name=Review fixture", "-c", "user.email=fixture@example.invalid", "commit", "-qm", "fixture")):

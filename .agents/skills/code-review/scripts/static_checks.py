@@ -266,7 +266,7 @@ def main():
     root = Path(__file__).resolve().parents[4]
     try:
         if Path(os.fsdecode(git(root, "rev-parse", "--show-toplevel")).strip()).resolve() != root:
-            raise ScopeError("Place the helper at .codex/skills/code-review/scripts/ inside the target repository.")
+            raise ScopeError("Place the helper at .agents/skills/code-review/scripts/ inside the target repository.")
         base, head, paths, untracked = scope(root, args)
         before = fingerprint(root)
         print(f"Scope: {base} -> {head or 'working tree (staged + unstaged + untracked)'}", flush=True)
