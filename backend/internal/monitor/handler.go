@@ -52,7 +52,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 // @Success 200 {object} Page
 // @Failure 400 {object} httpx.ErrorResponse "Invalid request or parameters"
 // @Failure 401 {object} httpx.ErrorResponse "Invalid credentials or token"
-// @Failure 403 {object} httpx.ErrorResponse "Origin is missing or forbidden"
+// @Failure 403 {object} httpx.ErrorResponse "Origin is forbidden"
 // @Failure 429 {object} httpx.ErrorResponse "Rate limit exceeded; see Retry-After"
 // @Failure 500 {object} httpx.ErrorResponse "Internal server error"
 // @Router /api/monitors [get]
@@ -83,7 +83,7 @@ func (h *Handler) list(w http.ResponseWriter, r *http.Request) {
 // @Failure 400 {object} httpx.ErrorResponse "Invalid request or parameters"
 // @Failure 401 {object} httpx.ErrorResponse "Invalid credentials or token"
 // @Failure 403 {object} httpx.ErrorResponse "Origin is missing or forbidden"
-// @Failure 409 {object} httpx.ErrorResponse "Account or monitor quota conflict"
+// @Failure 409 {object} httpx.ErrorResponse "Account monitor limit reached"
 // @Failure 429 {object} httpx.ErrorResponse "Rate limit exceeded; see Retry-After"
 // @Failure 500 {object} httpx.ErrorResponse "Internal server error"
 // @Router /api/monitors [post]

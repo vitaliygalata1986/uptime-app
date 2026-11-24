@@ -26,6 +26,7 @@ type SessionRequest struct{}
 
 // ProfileRequest supplies the name to trim and validate as 1–100 Unicode code points.
 type ProfileRequest struct {
+	// Name is validated after trimming: 1-100 Unicode code points without controls.
 	Name string `json:"name" binding:"required" minLength:"1" example:"Vitaliy"`
 }
 
@@ -58,7 +59,7 @@ func NewHandler(service *Service, secureCookies bool, avatars *AvatarStorage) *H
 // @Success 201 {object} Result
 // @Failure 400 {object} httpx.ErrorResponse "Invalid request or parameters"
 // @Failure 403 {object} httpx.ErrorResponse "Origin is missing or forbidden"
-// @Failure 409 {object} httpx.ErrorResponse "Account or monitor quota conflict"
+// @Failure 409 {object} httpx.ErrorResponse "Email already registered"
 // @Failure 429 {object} httpx.ErrorResponse "Rate limit exceeded; see Retry-After"
 // @Failure 500 {object} httpx.ErrorResponse "Internal server error"
 // @Router /api/auth/register [post]
@@ -181,7 +182,7 @@ func (h *Handler) sessionToken(w http.ResponseWriter, r *http.Request) (string, 
 // @Security BearerAuth
 // @Success 200 {object} User
 // @Failure 401 {object} httpx.ErrorResponse "Invalid credentials or token"
-// @Failure 403 {object} httpx.ErrorResponse "Origin is missing or forbidden"
+// @Failure 403 {object} httpx.ErrorResponse "Origin is forbidden"
 // @Failure 500 {object} httpx.ErrorResponse "Internal server error"
 // @Router /api/auth/me [get]
 func (h *Handler) Me(w http.ResponseWriter, r *http.Request) {
@@ -299,7 +300,7 @@ func (h *Handler) AvatarFile(w http.ResponseWriter, r *http.Request) {
 // @Failure 413 {object} httpx.ErrorResponse "File exceeds size limit"
 // @Failure 429 {object} httpx.ErrorResponse "Rate limit exceeded; see Retry-After"
 // @Failure 500 {object} httpx.ErrorResponse "Internal server error"
-// @Failure 503 {object} httpx.ErrorResponse "Storage or database unavailable"
+// @Failure 503 {object} httpx.ErrorResponse "Avatar storage unavailable"
 // @Router /api/auth/avatar [post]
 func (h *Handler) UploadAvatar(w http.ResponseWriter, r *http.Request) {
 	parts := strings.Fields(r.Header.Get("Authorization"))

@@ -41,7 +41,7 @@ func NewHandler(storage *Storage) *Handler { return &Handler{storage: storage} }
 // @Failure 413 {object} httpx.ErrorResponse "File exceeds size limit"
 // @Failure 429 {object} httpx.ErrorResponse "Rate limit exceeded; see Retry-After"
 // @Failure 500 {object} httpx.ErrorResponse "Internal server error"
-// @Failure 503 {object} httpx.ErrorResponse "Storage or database unavailable"
+// @Failure 503 {object} httpx.ErrorResponse "File storage unavailable"
 // @Router /api/uploads [post]
 func (h *Handler) Upload(w http.ResponseWriter, r *http.Request) {
 	if h.storage == nil {
