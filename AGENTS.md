@@ -25,7 +25,7 @@ Validate changes using the affected project's checks. For changes spanning both 
 
 ## API Documentation
 
-When adding or changing backend API routes, maintain swaggo annotations and regenerate the contract according to [backend/AGENTS.md](backend/AGENTS.md#api-documentation).
+When adding, changing or removing backend API routes or their contracts, use the [swaggo-openapi skill](.codex/skills/swaggo-openapi/SKILL.md) to maintain swaggo annotations and regenerate the contract according to [backend/AGENTS.md](backend/AGENTS.md#api-documentation).
 
 ## When starting a new task use GitHub Flow
 

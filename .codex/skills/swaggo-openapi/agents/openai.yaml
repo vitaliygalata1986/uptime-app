@@ -1,0 +1,3 @@
+interface:
+  display_name: "Swaggo OpenAPI"
+  short_description: "Keep backend routes and OpenAPI docs in sync"
