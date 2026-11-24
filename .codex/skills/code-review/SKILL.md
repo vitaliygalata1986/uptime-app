@@ -41,6 +41,8 @@ Exit `0`: applicable checks passed; `1`: failures; `2`: incomplete/blocked (miss
 
 The helper does not run tests, start services/containers, access a DB or install tools. Go may need its module cache/proxy. Use installed tools on PATH; do not silently substitute unsupported versions.
 
+Language-tool diagnostics are suppressed when the diff contains possible secrets or the diagnostics match secret heuristics; check statuses and exit codes remain visible. Generated `backend/docs/*.go` files select Go checks because the API imports them. To verify the helper itself, run `python3 -B -m unittest discover -s .codex/skills/code-review/scripts -p 'test_*.py'` from the repository root.
+
 ## 3. Review Every Applicable Checklist Item
 
 Read [references/review-checklist.md](references/review-checklist.md) on **every invocation**. Apply common items to all diffs and conditional sections to affected files and dependencies. Record every ID as `checked`, `finding`, `not verified` or `not applicable`, with a short reason; group IDs only when status/applicability agree. Missing execution evidence is never a passed check.
