@@ -1,0 +1,3 @@
+interface:
+  display_name: "Product Code Review"
+  short_description: "Review Go and Next.js diffs with ranked findings"
