@@ -25,7 +25,11 @@ Validate changes using the affected project's checks. For changes spanning both 
 
 ## API Documentation
 
-When adding, changing or removing backend API routes or their contracts, use the [swaggo-openapi skill](.codex/skills/swaggo-openapi/SKILL.md) to maintain swaggo annotations and regenerate the contract according to [backend/AGENTS.md](backend/AGENTS.md#api-documentation).
+When adding, changing or removing backend API routes or their contracts, use the [swaggo-openapi skill](.agents/skills/swaggo-openapi/SKILL.md) to maintain swaggo annotations and regenerate the contract according to [backend/AGENTS.md](backend/AGENTS.md#api-documentation).
+
+## Agent Skills
+
+Repository skills live in `.agents/skills/`. Keep skill instructions, references and helper commands consistent with this location. `skills-lock.json` records installed third-party skills and their sources.
 
 ## When starting a new task use GitHub Flow
 
@@ -35,7 +39,7 @@ Details in file: [docs/rules/github-flow.md](docs/rules/github-flow.md).
 
 ## When committing
 
-Use the [commit skill](.codex/skills/commit/SKILL.md).
+Use the [commit skill](.agents/skills/commit/SKILL.md).
 
 ## When creating Pull Request Workflow
 

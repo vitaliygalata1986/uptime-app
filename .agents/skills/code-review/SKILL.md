@@ -23,9 +23,9 @@ Inventory paths with `git diff --name-status --no-renames <base> <head>` so both
 Use Python 3.9+; examples from the repository root:
 
 ```bash
-python3 .codex/skills/code-review/scripts/static_checks.py --commit HEAD
-python3 .codex/skills/code-review/scripts/static_checks.py --base origin/master --head HEAD
-python3 .codex/skills/code-review/scripts/static_checks.py --worktree
+python3 .agents/skills/code-review/scripts/static_checks.py --commit HEAD
+python3 .agents/skills/code-review/scripts/static_checks.py --base origin/master --head HEAD
+python3 .agents/skills/code-review/scripts/static_checks.py --worktree
 ```
 
 `--base` uses its merge-base with `--head` (default HEAD). The helper prints resolved SHAs/scope, selects checks by changed paths, and continues other applicable checks after a failure:
@@ -41,7 +41,7 @@ Exit `0`: applicable checks passed; `1`: failures; `2`: incomplete/blocked (miss
 
 The helper does not run tests, start services/containers, access a DB or install tools. Go may need its module cache/proxy. Use installed tools on PATH; do not silently substitute unsupported versions.
 
-Language-tool diagnostics are suppressed when the diff contains possible secrets or the diagnostics match secret heuristics; check statuses and exit codes remain visible. Generated `backend/docs/*.go` files select Go checks because the API imports them. To verify the helper itself, run `python3 -B -m unittest discover -s .codex/skills/code-review/scripts -p 'test_*.py'` from the repository root.
+Language-tool diagnostics are suppressed when the diff contains possible secrets or the diagnostics match secret heuristics; check statuses and exit codes remain visible. Generated `backend/docs/*.go` files select Go checks because the API imports them. To verify the helper itself, run `python3 -B -m unittest discover -s .agents/skills/code-review/scripts -p 'test_*.py'` from the repository root.
 
 ## 3. Review Every Applicable Checklist Item
 
