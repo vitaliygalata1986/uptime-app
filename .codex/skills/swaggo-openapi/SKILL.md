@@ -27,14 +27,15 @@ Global API metadata and the Bearer security definition live in `backend/cmd/api/
 
 ## Regenerate Artifacts
 
-After updating source annotations and DTOs, run these commands sequentially from `backend/`:
+After synchronizing source annotations and DTOs with the routes, run [scripts/sync-docs.sh](scripts/sync-docs.sh) from the repository root:
 
 ```bash
-go generate .
-npm --prefix .. run docs:redoc
+bash .codex/skills/swaggo-openapi/scripts/sync-docs.sh
 ```
 
-`backend/generate.go` pins swaggo; the root `docs:redoc` script pins Redocly. Do not substitute an unpinned global generator or manually edit generated files. Include all four outputs with the API change:
+The script resolves the repository from its own location, so it also works by absolute path from another working directory. It runs `go generate .` from `backend/`, then immediately runs `npm --prefix .. run docs:redoc` only if contract generation succeeds. Any failed step stops the script with a nonzero exit code. It requires the Go and Node.js/npm versions specified in `backend/AGENTS.md` on `PATH`.
+
+`backend/generate.go` pins swaggo; the root `docs:redoc` script pins Redocly. The helper reuses both commands without duplicating generator configuration. Do not substitute an unpinned global generator or manually edit generated files. Include all four outputs with the API change:
 
 - `backend/docs/docs.go`
 - `backend/docs/swagger.json`
