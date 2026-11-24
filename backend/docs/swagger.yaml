@@ -18,6 +18,8 @@ definitions:
   auth.ProfileRequest:
     properties:
       name:
+        description: 'Name is validated after trimming: 1-100 Unicode code points
+          without controls.'
         example: Vitaliy
         minLength: 1
         type: string
@@ -179,7 +181,7 @@ paths:
           schema:
             $ref: '#/definitions/httpx.ErrorResponse'
         "503":
-          description: Storage or database unavailable
+          description: Avatar storage unavailable
           schema:
             $ref: '#/definitions/httpx.ErrorResponse'
       security:
@@ -291,7 +293,7 @@ paths:
           schema:
             $ref: '#/definitions/httpx.ErrorResponse'
         "403":
-          description: Origin is missing or forbidden
+          description: Origin is forbidden
           schema:
             $ref: '#/definitions/httpx.ErrorResponse'
         "500":
@@ -434,7 +436,7 @@ paths:
           schema:
             $ref: '#/definitions/httpx.ErrorResponse'
         "409":
-          description: Account or monitor quota conflict
+          description: Email already registered
           schema:
             $ref: '#/definitions/httpx.ErrorResponse'
         "429":
@@ -474,7 +476,7 @@ paths:
           schema:
             $ref: '#/definitions/httpx.ErrorResponse'
         "403":
-          description: Origin is missing or forbidden
+          description: Origin is forbidden
           schema:
             $ref: '#/definitions/httpx.ErrorResponse'
         "429":
@@ -529,7 +531,7 @@ paths:
           schema:
             $ref: '#/definitions/httpx.ErrorResponse'
         "409":
-          description: Account or monitor quota conflict
+          description: Account monitor limit reached
           schema:
             $ref: '#/definitions/httpx.ErrorResponse'
         "429":
@@ -593,7 +595,7 @@ paths:
           schema:
             $ref: '#/definitions/httpx.ErrorResponse'
         "503":
-          description: Storage or database unavailable
+          description: File storage unavailable
           schema:
             $ref: '#/definitions/httpx.ErrorResponse'
       security:
@@ -611,11 +613,11 @@ paths:
           schema:
             $ref: '#/definitions/health.Response'
         "403":
-          description: Origin is missing or forbidden
+          description: Origin is forbidden
           schema:
             $ref: '#/definitions/httpx.ErrorResponse'
         "503":
-          description: Storage or database unavailable
+          description: Database unavailable
           schema:
             $ref: '#/definitions/httpx.ErrorResponse'
       summary: Check database readiness

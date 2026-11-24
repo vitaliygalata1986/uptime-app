@@ -27,8 +27,8 @@ func NewHandler(db *sql.DB) *Handler {
 // @Tags health
 // @Produce json
 // @Success 200 {object} Response
-// @Failure 403 {object} httpx.ErrorResponse "Origin is missing or forbidden"
-// @Failure 503 {object} httpx.ErrorResponse "Storage or database unavailable"
+// @Failure 403 {object} httpx.ErrorResponse "Origin is forbidden"
+// @Failure 503 {object} httpx.ErrorResponse "Database unavailable"
 // @Router /healthz [get]
 func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if err := h.db.PingContext(r.Context()); err != nil {

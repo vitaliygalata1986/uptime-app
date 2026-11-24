@@ -100,7 +100,7 @@ const docTemplate = `{
                         }
                     },
                     "503": {
-                        "description": "Storage or database unavailable",
+                        "description": "Avatar storage unavailable",
                         "schema": {
                             "$ref": "#/definitions/httpx.ErrorResponse"
                         }
@@ -265,7 +265,7 @@ const docTemplate = `{
                         }
                     },
                     "403": {
-                        "description": "Origin is missing or forbidden",
+                        "description": "Origin is forbidden",
                         "schema": {
                             "$ref": "#/definitions/httpx.ErrorResponse"
                         }
@@ -473,7 +473,7 @@ const docTemplate = `{
                         }
                     },
                     "409": {
-                        "description": "Account or monitor quota conflict",
+                        "description": "Email already registered",
                         "schema": {
                             "$ref": "#/definitions/httpx.ErrorResponse"
                         }
@@ -537,7 +537,7 @@ const docTemplate = `{
                         }
                     },
                     "403": {
-                        "description": "Origin is missing or forbidden",
+                        "description": "Origin is forbidden",
                         "schema": {
                             "$ref": "#/definitions/httpx.ErrorResponse"
                         }
@@ -618,7 +618,7 @@ const docTemplate = `{
                         }
                     },
                     "409": {
-                        "description": "Account or monitor quota conflict",
+                        "description": "Account monitor limit reached",
                         "schema": {
                             "$ref": "#/definitions/httpx.ErrorResponse"
                         }
@@ -716,7 +716,7 @@ const docTemplate = `{
                         }
                     },
                     "503": {
-                        "description": "Storage or database unavailable",
+                        "description": "File storage unavailable",
                         "schema": {
                             "$ref": "#/definitions/httpx.ErrorResponse"
                         }
@@ -741,13 +741,13 @@ const docTemplate = `{
                         }
                     },
                     "403": {
-                        "description": "Origin is missing or forbidden",
+                        "description": "Origin is forbidden",
                         "schema": {
                             "$ref": "#/definitions/httpx.ErrorResponse"
                         }
                     },
                     "503": {
-                        "description": "Storage or database unavailable",
+                        "description": "Database unavailable",
                         "schema": {
                             "$ref": "#/definitions/httpx.ErrorResponse"
                         }
@@ -895,6 +895,7 @@ const docTemplate = `{
             ],
             "properties": {
                 "name": {
+                    "description": "Name is validated after trimming: 1-100 Unicode code points without controls.",
                     "type": "string",
                     "minLength": 1,
                     "example": "Vitaliy"
