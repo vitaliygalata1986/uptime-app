@@ -67,8 +67,10 @@ def project_selection(paths):
         or path.startswith(("compose.", "docker-compose.", ".github/workflows/", "scripts/"))
         for path in paths
     )
-    # Markdown and generated documentation do not require language toolchains.
-    code_paths = [p for p in paths if not p.endswith(".md") and not p.startswith("backend/docs/")]
+    # Generated Go documentation is imported by the API and must still compile.
+    code_paths = [p for p in paths if not p.endswith(".md") and not (
+        p.startswith("backend/docs/") and p.endswith((".json", ".yaml", ".yml", ".html"))
+    )]
     return shared or any(p.startswith("backend/") for p in code_paths), shared or any(p.startswith("frontend/") for p in code_paths)
 
 
@@ -160,6 +162,7 @@ class Checks:
     def __init__(self, timeout):
         self.results = []
         self.timeout = timeout
+        self.suppress_output = False
 
     def record(self, label, status, detail=""):
         """Record one status without changing previously recorded results."""
@@ -167,7 +170,7 @@ class Checks:
         print(f"[{status}] {label}" + (f": {detail}" if detail else ""), flush=True)
 
     def run(self, label, command, cwd, env=None, empty_output=False):
-        """Run a non-fixing command with a timeout, recording its actual status."""
+        """Run a non-fixing command, suppressing diagnostics that may expose secrets."""
         print(f"RUN {label}: {' '.join(map(str, command))}", flush=True)
         try:
             result = subprocess.run(command, cwd=cwd, env=env, capture_output=True, text=True, errors="replace", timeout=self.timeout, check=False)
@@ -176,7 +179,11 @@ class Checks:
             return False
         output = result.stdout + result.stderr
         if output:
-            print(output.rstrip(), flush=True)
+            # Compilers can echo a scanned credential without its assignment/name.
+            if self.suppress_output or any(secret_kinds(line) for line in output.splitlines()):
+                print("[tool output redacted: possible secret content]", flush=True)
+            else:
+                print(output.rstrip(), flush=True)
         ok = result.returncode == 0 and (not empty_output or not output.strip())
         self.record(label, "PASS" if ok else "FAIL", f"exit {result.returncode}")
         return ok
@@ -268,6 +275,7 @@ def main():
         revisions = [base] + ([head] if head else [])
         diff = subprocess.run(["git", "-C", str(root), "diff", "--check", *revisions, "--"], capture_output=True, check=False)
         secrets, whitespace = inspect_changes(root, revisions, paths, untracked)
+        checks.suppress_output = bool(secrets)
         # Git's whitespace output can include source lines; report locations only.
         locations = [line for line in diff.stdout.decode("utf-8", errors="replace").splitlines() if not line.startswith("+")]
         checks.record("diff whitespace", "FAIL" if diff.returncode or whitespace else "PASS", "\n".join(locations + whitespace))
