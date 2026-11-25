@@ -132,6 +132,87 @@ func TestIntegrationMonitorValidation(t *testing.T) {
 	}
 }
 
+func TestIntegrationMonitorUpdateAndDelete(t *testing.T) {
+	h := integration(t)
+	owner, _ := result(t, h.do("POST", "register", credentials("editor@example.com", testPassword), "", ""), 201)
+	other, _ := result(t, h.do("POST", "register", credentials("other-editor@example.com", testPassword), "", ""), 201)
+
+	checkMonitor := func(w *httptest.ResponseRecorder, status int) monitor.Monitor {
+		t.Helper()
+		expect(t, w, status)
+		var item monitor.Monitor
+		if err := json.Unmarshal(w.Body.Bytes(), &item); err != nil {
+			t.Fatal(err)
+		}
+		return item
+	}
+	created := checkMonitor(h.monitors("POST", `{"url":"https://example.com","interval_seconds":60}`, owner.AccessToken), 201)
+	target := fmt.Sprintf("/api/monitors/%d", created.ID)
+	patchURL := `{"url":"  https://example.org/status  "}`
+	expect(t, h.monitorRequest("PATCH", target, patchURL, ""), 401)
+	expect(t, h.monitorRequest("DELETE", target, "", ""), 401)
+	expect(t, h.monitorRequest("PATCH", target, patchURL, other.AccessToken), 404)
+	expect(t, h.monitorRequest("DELETE", target, "", other.AccessToken), 404)
+
+	for _, body := range []string{
+		`{}`, `{"url":"ftp://example.org"}`, `{"interval_seconds":0}`, `{"interval_seconds":2147483648}`,
+		`{"interval_seconds":1.5}`, `{"url":null,"interval_seconds":900}`, `{"url":"https://example.net","interval_seconds":null}`,
+		`{"url":"https://example.net","user_id":42}`,
+	} {
+		expect(t, h.monitorRequest("PATCH", target, body, owner.AccessToken), 400)
+	}
+	updated := checkMonitor(h.monitorRequest("PATCH", target, patchURL, owner.AccessToken), 200)
+	if updated.ID != created.ID || updated.URL != "https://example.org/status" ||
+		updated.IntervalSeconds != created.IntervalSeconds || !updated.CreatedAt.Equal(created.CreatedAt) {
+		t.Fatalf("after URL-only edit: %+v", updated)
+	}
+	updated = checkMonitor(h.monitorRequest("PATCH", target, `{"interval_seconds":900}`, owner.AccessToken), 200)
+	if updated.URL != "https://example.org/status" || updated.IntervalSeconds != 900 {
+		t.Fatalf("after interval-only edit: %+v", updated)
+	}
+	w := h.monitors("GET", "", owner.AccessToken)
+	expect(t, w, 200)
+	var page monitor.Page
+	if err := json.Unmarshal(w.Body.Bytes(), &page); err != nil || len(page.Monitors) != 1 || page.Monitors[0] != updated {
+		t.Fatalf("persisted edit: %s, %v", w.Body, err)
+	}
+
+	w = h.monitorRequest("DELETE", target, "", owner.AccessToken)
+	expect(t, w, 204)
+	if w.Body.Len() != 0 {
+		t.Fatalf("delete has a body: %s", w.Body)
+	}
+	expect(t, h.monitorRequest("DELETE", target, "", owner.AccessToken), 404)
+	h.clock.Add(int64(time.Minute))
+	expect(t, h.monitorRequest("PATCH", target, patchURL, owner.AccessToken), 404)
+	w = h.monitors("GET", "", owner.AccessToken)
+	expect(t, w, 200)
+	if err := json.Unmarshal(w.Body.Bytes(), &page); err != nil || len(page.Monitors) != 0 {
+		t.Fatalf("persisted deletion: %s, %v", w.Body, err)
+	}
+}
+
+func TestIntegrationMonitorMutationLimits(t *testing.T) {
+	h := integration(t)
+	owner, _ := result(t, h.do("POST", "register", credentials("monitor-edits@example.com", testPassword), "", ""), 201)
+	for _, request := range []struct {
+		method string
+		body   string
+	}{
+		{method: http.MethodPatch, body: `{"interval_seconds":60}`},
+		{method: http.MethodDelete},
+	} {
+		for id := 1; id <= 11; id++ {
+			target := fmt.Sprintf("/api/monitors/%d", id)
+			want := http.StatusNotFound
+			if id == 11 {
+				want = http.StatusTooManyRequests
+			}
+			expect(t, h.monitorRequest(request.method, target, request.body, owner.AccessToken), want)
+		}
+	}
+}
+
 func seedMonitors(t *testing.T, h *harness, owner uint64, count int, created time.Time) {
 	t.Helper()
 	_, err := h.db.SQL.Exec(`INSERT INTO monitors (user_id, url, interval_seconds, created_at)
@@ -310,6 +391,38 @@ func TestMonitorRouteGuards(t *testing.T) {
 			t.Fatalf("monitor preflight: %v", w.Header())
 		}
 		if tc.status == 405 && w.Header().Get("Allow") != "GET, POST, OPTIONS" {
+			t.Fatalf("monitor methods: %v", w.Header())
+		}
+	}
+}
+
+func TestMonitorItemRouteGuards(t *testing.T) {
+	for _, tc := range []struct {
+		method, origin, contentType, requested string
+		status                                 int
+	}{
+		{"PATCH", "", "application/json", "", 403},
+		{"PATCH", "http://localhost:3000", "text/plain", "", 400},
+		{"PATCH", "http://localhost:3000", "application/json", "", 401},
+		{"DELETE", "", "", "", 403},
+		{"DELETE", "https://other.example", "", "", 403},
+		{"DELETE", "http://localhost:3000", "", "", 401},
+		{"OPTIONS", "http://localhost:3000", "", "PATCH", 204},
+		{"OPTIONS", "http://localhost:3000", "", "DELETE", 204},
+		{"GET", "http://localhost:3000", "", "", 405},
+	} {
+		r := httptest.NewRequest(tc.method, "/api/monitors/1", nil)
+		r.Header.Set("Origin", tc.origin)
+		r.Header.Set("Content-Type", tc.contentType)
+		r.Header.Set("Access-Control-Request-Method", tc.requested)
+		r.Header.Set("Access-Control-Request-Headers", "authorization, content-type")
+		w := httptest.NewRecorder()
+		localAPI().ServeHTTP(w, r)
+		expect(t, w, tc.status)
+		if tc.status == 204 && w.Header().Get("Access-Control-Allow-Methods") != "DELETE, PATCH" {
+			t.Fatalf("monitor preflight: %v", w.Header())
+		}
+		if tc.status == 405 && w.Header().Get("Allow") != "DELETE, PATCH, OPTIONS" {
 			t.Fatalf("monitor methods: %v", w.Header())
 		}
 	}

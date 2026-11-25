@@ -76,7 +76,8 @@ func TestSwaggerContract(t *testing.T) {
 				t.Errorf("missing operation: %s %s", method, path)
 				continue
 			}
-			protected := path == "/api/auth/me" || path == "/api/auth/profile" || path == "/api/auth/avatar" || path == "/api/uploads" || path == "/api/monitors"
+			protected := path == "/api/auth/me" || path == "/api/auth/profile" || path == "/api/auth/avatar" ||
+				path == "/api/uploads" || path == "/api/monitors" || path == monitorItemRoute
 			var bearer bool
 			if len(operation.Security) == 1 {
 				_, bearer = operation.Security[0]["BearerAuth"]

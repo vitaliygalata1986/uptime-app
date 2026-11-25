@@ -62,5 +62,13 @@ export function useMonitors() {
     setMonitors((current) => [created, ...current]);
   }
 
-  return { monitors, nextCursor, loading, loadError, pageError, loadingMore, retry, loadMore, addMonitor };
+  function replaceMonitor(updated: Monitor) {
+    setMonitors((current) => current.map((monitor) => monitor.id === updated.id ? updated : monitor));
+  }
+
+  function removeMonitor(id: number) {
+    setMonitors((current) => current.filter((monitor) => monitor.id !== id));
+  }
+
+  return { monitors, nextCursor, loading, loadError, pageError, loadingMore, retry, loadMore, addMonitor, replaceMonitor, removeMonitor };
 }

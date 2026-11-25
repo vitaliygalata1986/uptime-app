@@ -37,7 +37,7 @@
   margin: 0 0 28px;
 }
 
-.form h2, .empty h2 {
+.form h2, .editForm h2, .empty h2, .dialog h2 {
   margin: 0;
   font-size: 20px;
 }
@@ -85,14 +85,15 @@
   padding: 0;
 }
 
-.monitor {
+.monitorSummary {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  flex-wrap: wrap;
   gap: 20px;
 }
 
 .details {
+  flex: 1 1 220px;
   min-width: 0;
 }
 
@@ -115,11 +116,74 @@
   font-size: 12px;
 }
 
+.rowActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.rowActions button {
+  width: auto;
+  min-height: 44px;
+  margin: 0;
+  padding: 8px 12px;
+  font-size: 14px;
+}
+
+.deleteAction {
+  background: #fff1f1;
+  color: #a42b32;
+}
+
+.deleteAction:hover {
+  background: #fce0e0;
+}
+
+.editForm {
+  max-width: 620px;
+  margin: 20px 0 0;
+  padding-top: 20px;
+  border-top: 1px solid #dce5df;
+}
+
+.dialog {
+  width: min(440px, calc(100% - 32px));
+  padding: 24px;
+  border: 1px solid #dce5df;
+  border-radius: 16px;
+  color: var(--ink);
+}
+
+.dialog::backdrop {
+  background: #172f3766;
+}
+
+.dialog > p {
+  margin: 12px 0 0;
+  overflow-wrap: anywhere;
+}
+
+.dialog form {
+  margin: 0;
+}
+
+.danger {
+  background: #a42b32;
+}
+
+.danger:hover {
+  background: #88232a;
+}
+
 @media (max-width: 600px) {
-  .heading, .monitor {
+  .heading, .monitorSummary {
     align-items: stretch;
     flex-direction: column;
     gap: 16px;
+  }
+
+  .details {
+    flex: none;
   }
 
   .status {

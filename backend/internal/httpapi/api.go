@@ -27,6 +27,8 @@ type route struct {
 
 type methods map[string]route
 
+const monitorItemRoute = "/api/monitors/{id}"
+
 func (m methods) allowed() string {
 	names := make([]string, 0, len(m))
 	for name := range m {
@@ -68,6 +70,10 @@ func New(authHandler *auth.Handler, healthHandler http.Handler, uploadHandler *u
 			http.MethodGet:  {authHandler.RequireUser(a.limitUser(monitorHandler.ServeHTTP, 60)), 0},
 			http.MethodPost: {authHandler.RequireUser(a.limitUser(monitorHandler.ServeHTTP, 10)), 0},
 		},
+		monitorItemRoute: {
+			http.MethodPatch:  {authHandler.RequireUser(a.limitUser(monitorHandler.ServeHTTP, 10)), 0},
+			http.MethodDelete: {authHandler.RequireUser(a.limitUser(monitorHandler.ServeHTTP, 10)), 0},
+		},
 		"/healthz": {http.MethodGet: {healthHandler.ServeHTTP, 0}},
 	}
 	for _, origin := range cfg.AllowedOrigins {
@@ -90,7 +96,14 @@ func (a *API) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Access-Control-Allow-Origin", origin)
 		w.Header().Set("Access-Control-Allow-Credentials", "true")
 	}
-	matched, ok := a.routes[r.URL.Path]
+	path := r.URL.Path
+	id, hasMonitorPrefix := strings.CutPrefix(path, "/api/monitors/")
+	isMonitorItem := hasMonitorPrefix && id != "" && !strings.Contains(id, "/")
+	if isMonitorItem {
+		path = monitorItemRoute
+		r.SetPathValue("id", id)
+	}
+	matched, ok := a.routes[path]
 	if strings.HasPrefix(r.URL.Path, "/uploads/avatars/") {
 		matched, ok = methods{http.MethodGet: {a.avatars, 0}}, true
 	}
@@ -114,11 +127,13 @@ func (a *API) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		httpx.WriteError(w, http.StatusMethodNotAllowed, "method_not_allowed", "Method not allowed")
 		return
 	}
-	if r.Method == http.MethodPost || r.Method == http.MethodPatch {
-		if origin == "" {
-			httpx.WriteError(w, http.StatusForbidden, "forbidden_origin", "Origin is required")
-			return
-		}
+	r.Pattern = path
+	expectsBody := r.Method == http.MethodPost || r.Method == http.MethodPatch
+	if origin == "" && (expectsBody || r.Method == http.MethodDelete) {
+		httpx.WriteError(w, http.StatusForbidden, "forbidden_origin", "Origin is required")
+		return
+	}
+	if expectsBody {
 		contentType, _, err := mime.ParseMediaType(r.Header.Get("Content-Type"))
 		expectedType := "application/json"
 		if r.URL.Path == "/api/auth/avatar" || r.URL.Path == "/api/uploads" {
@@ -147,7 +162,7 @@ func (a *API) allow(w http.ResponseWriter, r *http.Request, identity string, lim
 	if limit == 0 {
 		return true
 	}
-	key := r.URL.Path + ":" + r.Method + ":" + identity
+	key := r.Pattern + ":" + r.Method + ":" + identity
 	if ok, retry := a.limiter.allow(key, limit, a.now()); !ok {
 		// Round up fractional seconds so clients do not retry before the window ends.
 		w.Header().Set("Retry-After", strconv.Itoa(int(math.Ceil(retry.Seconds()))))

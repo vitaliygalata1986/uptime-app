@@ -11,7 +11,7 @@ Read the applicable directory guide before changing either project. Run commands
 
 ## Shared Development Guidelines
 
-Keep changes focused and match the surrounding code style. Backend authentication, PostgreSQL persistence through GORM, and Goose migrations are implemented. Frontend registration, login, session restoration and the account dashboard use the Go API. Monitor creation and per-user listing are implemented; site polling is not implemented. Run both projects with `npm run dev` (Node.js 22.13+ or 24+); the launcher waits for readiness and uses the published API port. Ctrl+C stops frontend; `npm run dev:stop` stops backend without deleting data.
+Keep changes focused and match the surrounding code style. Backend authentication, PostgreSQL persistence through GORM, and Goose migrations are implemented. Frontend registration, login, session restoration and the account dashboard use the Go API. Monitor creation, per-user listing, editing and deletion are implemented; site polling is not implemented. Run both projects with `npm run dev` (Node.js 22.13+ or 24+); the launcher waits for readiness and uses the published API port. Ctrl+C stops frontend; `npm run dev:stop` stops backend without deleting data.
 
 Validate changes using the affected project's checks. For changes spanning both projects, validate both sides and their interaction. Report which checks ran and distinguish static checks from runtime verification. Run `git diff --check` before submitting changes.
 
