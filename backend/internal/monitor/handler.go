@@ -1,10 +1,12 @@
 package monitor
 
 import (
+	"encoding/json"
 	"errors"
 	"log/slog"
 	"net/http"
 	"net/url"
+	"strconv"
 
 	"uptime-app/backend/internal/httpx"
 	"uptime-app/backend/internal/store"
@@ -16,6 +18,12 @@ type CreateRequest struct {
 	IntervalSeconds int    `json:"interval_seconds" binding:"required" minimum:"1" maximum:"2147483647" example:"60"`
 }
 
+// UpdateRequest supplies one or both monitor fields. A supplied field must have a value.
+type UpdateRequest struct {
+	URL             json.RawMessage `json:"url,omitempty" swaggertype:"string" maxLength:"2048" example:"https://example.com"`
+	IntervalSeconds json.RawMessage `json:"interval_seconds,omitempty" swaggertype:"integer" minimum:"1" maximum:"2147483647" example:"60"`
+}
+
 type Handler struct {
 	service *Service
 }
@@ -25,7 +33,7 @@ func NewHandler(service *Service) *Handler {
 	return &Handler{service: service}
 }
 
-// ServeHTTP lists or creates monitors using only the verified owner ID from the request context.
+// ServeHTTP dispatches monitor requests using only the verified owner ID from the request context.
 func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	userID := httpx.UserID(r.Context())
 	if userID == 0 {
@@ -37,8 +45,18 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		h.list(w, r)
 	case http.MethodPost:
 		h.create(w, r)
+	case http.MethodPatch, http.MethodDelete:
+		id, err := strconv.ParseUint(r.PathValue("id"), 10, 63)
+		if err != nil || id == 0 {
+			httpx.WriteError(w, http.StatusBadRequest, "invalid_monitor_id", "Use a positive monitor ID")
+			return
+		}
+		if r.Method == http.MethodPatch {
+			h.update(w, r, id)
+			return
+		}
+		h.delete(w, r, id)
 	default:
-		w.Header().Set("Allow", "GET, POST, OPTIONS")
 		httpx.WriteError(w, http.StatusMethodNotAllowed, "method_not_allowed", "Method not allowed")
 	}
 }
@@ -102,6 +120,85 @@ func (h *Handler) create(w http.ResponseWriter, r *http.Request) {
 	httpx.WriteJSON(w, http.StatusCreated, monitor)
 }
 
+// @Summary Update a monitor
+// @Tags monitors
+// @Description Updates one or both fields of a monitor owned by the current account. Omitted fields retain their values. Limited to 10 requests per user per minute.
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param Origin header string true "An origin configured in ALLOWED_ORIGINS" example(http://localhost:3000)
+// @Param id path int64 true "Positive monitor ID" minimum(1)
+// @Param monitor body UpdateRequest true "At least one non-null field: an HTTP(S) URL without credentials or fragment, or a positive integer interval in seconds"
+// @Success 200 {object} Monitor
+// @Failure 400 {object} httpx.ErrorResponse "Invalid request or parameters"
+// @Failure 401 {object} httpx.ErrorResponse "Invalid credentials or token"
+// @Failure 403 {object} httpx.ErrorResponse "Origin is missing or forbidden"
+// @Failure 404 {object} httpx.ErrorResponse "Monitor not found for this account"
+// @Failure 429 {object} httpx.ErrorResponse "Rate limit exceeded; see Retry-After"
+// @Failure 500 {object} httpx.ErrorResponse "Internal server error"
+// @Router /api/monitors/{id} [patch]
+func (h *Handler) update(w http.ResponseWriter, r *http.Request, id uint64) {
+	var body UpdateRequest
+	if err := httpx.Decode(w, r, &body); err != nil {
+		httpx.WriteError(w, http.StatusBadRequest, "invalid_request", "Expected URL or interval_seconds")
+		return
+	}
+	value, err := optionalField[string](body.URL)
+	if err != nil {
+		h.fail(w, ErrInvalidURL)
+		return
+	}
+	interval, err := optionalField[int](body.IntervalSeconds)
+	if err != nil {
+		h.fail(w, ErrInvalidInterval)
+		return
+	}
+	changes := store.MonitorChanges{URL: value, IntervalSeconds: interval}
+	updated, err := h.service.Update(r.Context(), httpx.UserID(r.Context()), id, changes)
+	if err != nil {
+		h.fail(w, err)
+		return
+	}
+	httpx.WriteJSON(w, http.StatusOK, updated)
+}
+
+// @Summary Delete a monitor
+// @Tags monitors
+// @Description Deletes a monitor owned by the current account. Limited to 10 requests per user per minute.
+// @Produce json
+// @Security BearerAuth
+// @Param Origin header string true "An origin configured in ALLOWED_ORIGINS" example(http://localhost:3000)
+// @Param id path int64 true "Positive monitor ID" minimum(1)
+// @Success 204 "No Content"
+// @Failure 400 {object} httpx.ErrorResponse "Invalid monitor ID"
+// @Failure 401 {object} httpx.ErrorResponse "Invalid credentials or token"
+// @Failure 403 {object} httpx.ErrorResponse "Origin is missing or forbidden"
+// @Failure 404 {object} httpx.ErrorResponse "Monitor not found for this account"
+// @Failure 429 {object} httpx.ErrorResponse "Rate limit exceeded; see Retry-After"
+// @Failure 500 {object} httpx.ErrorResponse "Internal server error"
+// @Router /api/monitors/{id} [delete]
+func (h *Handler) delete(w http.ResponseWriter, r *http.Request, id uint64) {
+	if err := h.service.Delete(r.Context(), httpx.UserID(r.Context()), id); err != nil {
+		h.fail(w, err)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func optionalField[T string | int](raw json.RawMessage) (*T, error) {
+	if raw == nil {
+		return nil, nil
+	}
+	var value *T
+	if err := json.Unmarshal(raw, &value); err != nil {
+		return nil, err
+	}
+	if value == nil {
+		return nil, errors.New("field must not be null")
+	}
+	return value, nil
+}
+
 func (h *Handler) fail(w http.ResponseWriter, err error) {
 	switch {
 	case errors.Is(err, ErrInvalidURL):
@@ -110,6 +207,10 @@ func (h *Handler) fail(w http.ResponseWriter, err error) {
 		httpx.WriteError(w, http.StatusBadRequest, "invalid_interval", "Use a whole number of seconds from 1 to 2147483647")
 	case errors.Is(err, ErrInvalidCursor):
 		httpx.WriteError(w, http.StatusBadRequest, "invalid_cursor", "Use the next_cursor returned by the previous page")
+	case errors.Is(err, errEmptyUpdate):
+		httpx.WriteError(w, http.StatusBadRequest, "invalid_request", "Provide at least one of url or interval_seconds")
+	case errors.Is(err, store.ErrMonitorNotFound):
+		httpx.WriteError(w, http.StatusNotFound, "monitor_not_found", "Monitor not found")
 	case errors.Is(err, store.ErrMonitorLimit):
 		httpx.WriteError(w, http.StatusConflict, "monitor_limit", "An account can have at most 100 monitors")
 	case errors.Is(err, store.ErrUnauthorized):

@@ -18,6 +18,7 @@ var (
 	ErrInvalidURL      = errors.New("invalid monitor URL")
 	ErrInvalidInterval = errors.New("invalid monitor interval")
 	ErrInvalidCursor   = errors.New("invalid monitor cursor")
+	errEmptyUpdate     = errors.New("empty monitor update")
 )
 
 const MaxIntervalSeconds = 2147483647 // PostgreSQL INTEGER capacity.
@@ -69,14 +70,43 @@ func (s *Service) Create(ctx context.Context, userID uint64, rawURL string, inte
 	if err != nil {
 		return Monitor{}, err
 	}
-	if interval < 1 || interval > MaxIntervalSeconds {
-		return Monitor{}, ErrInvalidInterval
+	if err := validateInterval(interval); err != nil {
+		return Monitor{}, err
 	}
 	row := store.Monitor{UserID: userID, URL: value, IntervalSeconds: interval, CreatedAt: time.Now().UTC().Truncate(time.Microsecond)}
 	if err := s.Store.CreateMonitor(ctx, &row, MaxMonitorsPerUser); err != nil {
 		return Monitor{}, err
 	}
 	return publicMonitor(row), nil
+}
+
+// Update validates supplied fields and updates a monitor belonging to the trusted owner.
+func (s *Service) Update(ctx context.Context, userID, id uint64, changes store.MonitorChanges) (Monitor, error) {
+	if changes.URL == nil && changes.IntervalSeconds == nil {
+		return Monitor{}, errEmptyUpdate
+	}
+	if changes.URL != nil {
+		value, err := ValidateURL(*changes.URL)
+		if err != nil {
+			return Monitor{}, err
+		}
+		changes.URL = &value
+	}
+	if changes.IntervalSeconds != nil {
+		if err := validateInterval(*changes.IntervalSeconds); err != nil {
+			return Monitor{}, err
+		}
+	}
+	row, err := s.Store.UpdateMonitor(ctx, userID, id, changes)
+	if err != nil {
+		return Monitor{}, err
+	}
+	return publicMonitor(row), nil
+}
+
+// Delete removes a monitor belonging to the trusted owner.
+func (s *Service) Delete(ctx context.Context, userID, id uint64) error {
+	return s.Store.DeleteMonitor(ctx, userID, id)
 }
 
 // List returns up to PageSize owner-scoped monitors and a cursor, empty on the final page.
@@ -119,4 +149,11 @@ func (s *Service) List(ctx context.Context, userID uint64, cursor string) (Page,
 
 func publicMonitor(row store.Monitor) Monitor {
 	return Monitor{ID: row.ID, URL: row.URL, IntervalSeconds: row.IntervalSeconds, CreatedAt: row.CreatedAt}
+}
+
+func validateInterval(interval int) error {
+	if interval < 1 || interval > MaxIntervalSeconds {
+		return ErrInvalidInterval
+	}
+	return nil
 }

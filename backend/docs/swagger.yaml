@@ -107,6 +107,18 @@ definitions:
       next_cursor:
         type: string
     type: object
+  monitor.UpdateRequest:
+    properties:
+      interval_seconds:
+        example: 60
+        maximum: 2147483647
+        minimum: 1
+        type: integer
+      url:
+        example: https://example.com
+        maxLength: 2048
+        type: string
+    type: object
   upload.File:
     properties:
       content_type:
@@ -545,6 +557,120 @@ paths:
       security:
       - BearerAuth: []
       summary: Create a monitor
+      tags:
+      - monitors
+  /api/monitors/{id}:
+    delete:
+      description: Deletes a monitor owned by the current account. Limited to 10 requests
+        per user per minute.
+      parameters:
+      - description: An origin configured in ALLOWED_ORIGINS
+        example: http://localhost:3000
+        in: header
+        name: Origin
+        required: true
+        type: string
+      - description: Positive monitor ID
+        format: int64
+        in: path
+        minimum: 1
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: No Content
+        "400":
+          description: Invalid monitor ID
+          schema:
+            $ref: '#/definitions/httpx.ErrorResponse'
+        "401":
+          description: Invalid credentials or token
+          schema:
+            $ref: '#/definitions/httpx.ErrorResponse'
+        "403":
+          description: Origin is missing or forbidden
+          schema:
+            $ref: '#/definitions/httpx.ErrorResponse'
+        "404":
+          description: Monitor not found for this account
+          schema:
+            $ref: '#/definitions/httpx.ErrorResponse'
+        "429":
+          description: Rate limit exceeded; see Retry-After
+          schema:
+            $ref: '#/definitions/httpx.ErrorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/httpx.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Delete a monitor
+      tags:
+      - monitors
+    patch:
+      consumes:
+      - application/json
+      description: Updates one or both fields of a monitor owned by the current account.
+        Omitted fields retain their values. Limited to 10 requests per user per minute.
+      parameters:
+      - description: An origin configured in ALLOWED_ORIGINS
+        example: http://localhost:3000
+        in: header
+        name: Origin
+        required: true
+        type: string
+      - description: Positive monitor ID
+        format: int64
+        in: path
+        minimum: 1
+        name: id
+        required: true
+        type: integer
+      - description: 'At least one non-null field: an HTTP(S) URL without credentials
+          or fragment, or a positive integer interval in seconds'
+        in: body
+        name: monitor
+        required: true
+        schema:
+          $ref: '#/definitions/monitor.UpdateRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/monitor.Monitor'
+        "400":
+          description: Invalid request or parameters
+          schema:
+            $ref: '#/definitions/httpx.ErrorResponse'
+        "401":
+          description: Invalid credentials or token
+          schema:
+            $ref: '#/definitions/httpx.ErrorResponse'
+        "403":
+          description: Origin is missing or forbidden
+          schema:
+            $ref: '#/definitions/httpx.ErrorResponse'
+        "404":
+          description: Monitor not found for this account
+          schema:
+            $ref: '#/definitions/httpx.ErrorResponse'
+        "429":
+          description: Rate limit exceeded; see Retry-After
+          schema:
+            $ref: '#/definitions/httpx.ErrorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/httpx.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Update a monitor
       tags:
       - monitors
   /api/uploads:
