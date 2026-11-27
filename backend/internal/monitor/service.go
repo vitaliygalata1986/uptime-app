@@ -24,6 +24,7 @@ var (
 const MaxIntervalSeconds = 2147483647 // PostgreSQL INTEGER capacity.
 const MaxMonitorsPerUser = 100
 const PageSize = 20
+const maxMonitorURLLength = 4096
 
 // Monitor is the public representation; ownership comes only from authentication.
 type Monitor struct {
@@ -42,11 +43,11 @@ type Page struct {
 	NextCursor string    `json:"next_cursor"`
 }
 
-// ValidateURL trims and validates an HTTP(S) URL without credentials, fragments or whitespace.
+// ValidateURL trims and validates an HTTP(S) URL within the byte limit and without credentials, fragments or whitespace.
 // It checks syntax only; it neither resolves nor requests the target.
 func ValidateURL(raw string) (string, error) {
 	value := strings.TrimSpace(raw)
-	if value == "" || len(value) > 2048 || strings.ContainsFunc(value, func(r rune) bool {
+	if value == "" || len(value) > maxMonitorURLLength || strings.ContainsFunc(value, func(r rune) bool {
 		return unicode.IsSpace(r) || unicode.IsControl(r)
 	}) {
 		return "", ErrInvalidURL

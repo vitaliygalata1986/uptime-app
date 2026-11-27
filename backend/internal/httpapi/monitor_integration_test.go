@@ -108,7 +108,8 @@ func TestIntegrationMonitorValidation(t *testing.T) {
 	h := integration(t)
 	account, _ := result(t, h.do("POST", "register", credentials("invalid-monitor@example.com", testPassword), "", ""), 201)
 	for _, body := range []string{
-		`{}`, `null`, `[]`, `{`, `{} {}`, strings.Repeat(" ", 8193),
+		`{}`, `null`, `[]`, `{`, `{} {}`,
+		strings.Repeat(" ", 26*1024) + `{"url":"https://example.com","interval_seconds":7}`,
 		`{"url":null,"interval_seconds":7}`, `{"url":"example.com","interval_seconds":7}`,
 		`{"url":"ftp://example.com","interval_seconds":7}`,
 		`{"url":"https://example.com","interval_seconds":0}`,
@@ -129,6 +130,48 @@ func TestIntegrationMonitorValidation(t *testing.T) {
 	expect(t, w, 200)
 	if strings.TrimSpace(w.Body.String()) != `{"monitors":[],"next_cursor":""}` {
 		t.Fatalf("invalid requests created points: %s", w.Body)
+	}
+}
+
+func TestIntegrationMonitorURLLength(t *testing.T) {
+	h := integration(t)
+	account, _ := result(t, h.do("POST", "register", credentials("long-url@example.com", testPassword), "", ""), 201)
+	const prefix = "https://example.com/?"
+	// Go's JSON encoder escapes ampersands, so the valid URL exceeds the default 8 KiB body limit.
+	createURL := prefix + strings.Repeat("&", 4096-len(prefix))
+	updateURL := createURL[:len(createURL)-1] + "a"
+	body := func(value string) string {
+		t.Helper()
+		encoded, err := json.Marshal(monitor.CreateRequest{URL: value, IntervalSeconds: 60})
+		if err != nil {
+			t.Fatal(err)
+		}
+		return string(encoded)
+	}
+	checkURL := func(w *httptest.ResponseRecorder, status int, wantURL string) monitor.Monitor {
+		t.Helper()
+		expect(t, w, status)
+		var item monitor.Monitor
+		if err := json.Unmarshal(w.Body.Bytes(), &item); err != nil || item.URL != wantURL {
+			t.Fatalf("expected URL of %d bytes, got %d bytes: %v", len(wantURL), len(item.URL), err)
+		}
+		return item
+	}
+	created := checkURL(h.monitors("POST", body(createURL), account.AccessToken), http.StatusCreated, createURL)
+	target := fmt.Sprintf("/api/monitors/%d", created.ID)
+	checkURL(h.monitorRequest("PATCH", target, body(updateURL), account.AccessToken), http.StatusOK, updateURL)
+	for _, w := range []*httptest.ResponseRecorder{
+		h.monitors("POST", body(createURL+"a"), account.AccessToken),
+		h.monitorRequest("PATCH", target, body(updateURL+"a"), account.AccessToken),
+	} {
+		expect(t, w, http.StatusBadRequest)
+		if !strings.Contains(w.Body.String(), `"code":"invalid_url"`) {
+			t.Fatalf("expected URL validation error: %s", w.Body)
+		}
+	}
+	var storedURL string
+	if err := h.db.SQL.QueryRow("SELECT url FROM monitors WHERE id = $1", created.ID).Scan(&storedURL); err != nil || storedURL != updateURL {
+		t.Fatalf("expected stored URL of %d bytes, got %d bytes: %v", len(updateURL), len(storedURL), err)
 	}
 }
 

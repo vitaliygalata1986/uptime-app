@@ -11,7 +11,12 @@ import (
 
 // Decode accepts a single UTF-8 JSON object of at most 8 KiB, without unknown fields.
 func Decode(w http.ResponseWriter, r *http.Request, target any) error {
-	body, err := io.ReadAll(http.MaxBytesReader(w, r.Body, 8192))
+	return DecodeWithLimit(w, r, target, 8192)
+}
+
+// DecodeWithLimit applies the same JSON validation as Decode with a custom byte limit.
+func DecodeWithLimit(w http.ResponseWriter, r *http.Request, target any, maxBytes int64) error {
+	body, err := io.ReadAll(http.MaxBytesReader(w, r.Body, maxBytes))
 	if err != nil || !utf8.Valid(body) {
 		return errors.New("invalid request body")
 	}

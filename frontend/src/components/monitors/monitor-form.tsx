@@ -1,7 +1,9 @@
 "use client";
 
 import { useEffect, useId, useRef, useState, type FormEvent } from "react";
-import { createMonitor, intervalUnit, MAX_INTERVAL_SECONDS, monitorErrorMessage, updateMonitor, type Monitor } from "@/lib/monitors";
+import {
+  createMonitor, intervalUnit, MAX_INTERVAL_SECONDS, MAX_MONITOR_URL_LENGTH, monitorErrorMessage, updateMonitor, type Monitor,
+} from "@/lib/monitors";
 import styles from "./dashboard.module.css";
 
 interface Props {
@@ -62,7 +64,7 @@ export function MonitorForm({ monitor, onSaved, onClose }: Props) {
     <h2 id={`${id}-title`}>{monitor ? "Редактирование сайта" : "Новая точка мониторинга"}</h2>
     <fieldset disabled={pending}>
       <label htmlFor={`${id}-url`}>URL сайта</label>
-      <input id={`${id}-url`} name="url" type="url" required maxLength={2048} placeholder="https://example.com"
+      <input id={`${id}-url`} name="url" type="url" required maxLength={MAX_MONITOR_URL_LENGTH} placeholder="https://example.com"
         autoFocus value={url} onChange={(event) => setURL(event.target.value)} aria-describedby={`${id}-hint`} />
       <p id={`${id}-hint`} className="hint">Полный адрес с http:// или https://, без логина, пароля и фрагмента (#).</p>
       <div className={styles.interval}>

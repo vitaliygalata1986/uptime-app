@@ -583,7 +583,7 @@ const docTemplate = `{
                         "required": true
                     },
                     {
-                        "description": "HTTP(S) URL without credentials or fragment and a positive integer interval in seconds",
+                        "description": "HTTP(S) URL up to 4096 bytes after trimming, without credentials or fragment, and a positive integer interval in seconds",
                         "name": "monitor",
                         "in": "body",
                         "required": true,
@@ -750,7 +750,7 @@ const docTemplate = `{
                         "required": true
                     },
                     {
-                        "description": "At least one non-null field: an HTTP(S) URL without credentials or fragment, or a positive integer interval in seconds",
+                        "description": "At least one non-null field: an HTTP(S) URL up to 4096 bytes after trimming, without credentials or fragment, or a positive integer interval in seconds",
                         "name": "monitor",
                         "in": "body",
                         "required": true,
@@ -1154,7 +1154,7 @@ const docTemplate = `{
                 },
                 "url": {
                     "type": "string",
-                    "maxLength": 2048,
+                    "maxLength": 4096,
                     "example": "https://example.com"
                 }
             }
@@ -1201,7 +1201,7 @@ const docTemplate = `{
                 },
                 "url": {
                     "type": "string",
-                    "maxLength": 2048,
+                    "maxLength": 4096,
                     "example": "https://example.com"
                 }
             }

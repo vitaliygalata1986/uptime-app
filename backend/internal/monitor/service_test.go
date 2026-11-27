@@ -26,13 +26,26 @@ func TestValidateURL(t *testing.T) {
 		"https://", "https:///path", "https://user:password@example.com",
 		"https://example.com/#fragment", "https://example.com/a b", "https://example.com/\x00",
 		"https://example.com:\n80", "https://example.com:no", "https://example.com:65536", "https://example.com:0",
-		"https://example.com/%zz", "https://example.com/" + strings.Repeat("a", 2048),
+		"https://example.com/%zz",
 	} {
 		t.Run(fmt.Sprintf("invalid %q", value[:min(len(value), 80)]), func(t *testing.T) {
 			if _, err := ValidateURL(value); !errors.Is(err, ErrInvalidURL) {
 				t.Fatalf("accepted URL %q: %v", value, err)
 			}
 		})
+	}
+}
+
+func TestValidateURLLength(t *testing.T) {
+	const prefix = "https://example.com/"
+	atLimit := prefix + strings.Repeat("a", 4096-len(prefix))
+	if got, err := ValidateURL("  " + atLimit + "  "); err != nil || got != atLimit {
+		t.Fatalf("expected a trimmed URL of 4096 bytes, got %d bytes: %v", len(got), err)
+	}
+	for _, value := range []string{atLimit + "a", atLimit[:len(atLimit)-1] + "я"} {
+		if _, err := ValidateURL(value); !errors.Is(err, ErrInvalidURL) {
+			t.Errorf("accepted a URL of %d bytes: %v", len(value), err)
+		}
 	}
 }
 

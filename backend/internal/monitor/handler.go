@@ -3,6 +3,7 @@ package monitor
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"net/url"
@@ -12,15 +13,18 @@ import (
 	"uptime-app/backend/internal/store"
 )
 
+// JSON may use six bytes for each URL character, with extra room for the enclosing object.
+const maxMonitorJSONBytes = 6*maxMonitorURLLength + 1024
+
 // CreateRequest supplies the target URL and polling interval to store; polling is not implemented.
 type CreateRequest struct {
-	URL             string `json:"url" binding:"required" maxLength:"2048" example:"https://example.com"`
+	URL             string `json:"url" binding:"required" maxLength:"4096" example:"https://example.com"`
 	IntervalSeconds int    `json:"interval_seconds" binding:"required" minimum:"1" maximum:"2147483647" example:"60"`
 }
 
 // UpdateRequest supplies one or both monitor fields. A supplied field must have a value.
 type UpdateRequest struct {
-	URL             json.RawMessage `json:"url,omitempty" swaggertype:"string" maxLength:"2048" example:"https://example.com"`
+	URL             json.RawMessage `json:"url,omitempty" swaggertype:"string" maxLength:"4096" example:"https://example.com"`
 	IntervalSeconds json.RawMessage `json:"interval_seconds,omitempty" swaggertype:"integer" minimum:"1" maximum:"2147483647" example:"60"`
 }
 
@@ -96,7 +100,7 @@ func (h *Handler) list(w http.ResponseWriter, r *http.Request) {
 // @Produce json
 // @Security BearerAuth
 // @Param Origin header string true "An origin configured in ALLOWED_ORIGINS" example(http://localhost:3000)
-// @Param monitor body CreateRequest true "HTTP(S) URL without credentials or fragment and a positive integer interval in seconds"
+// @Param monitor body CreateRequest true "HTTP(S) URL up to 4096 bytes after trimming, without credentials or fragment, and a positive integer interval in seconds"
 // @Success 201 {object} Monitor
 // @Failure 400 {object} httpx.ErrorResponse "Invalid request or parameters"
 // @Failure 401 {object} httpx.ErrorResponse "Invalid credentials or token"
@@ -108,7 +112,7 @@ func (h *Handler) list(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) create(w http.ResponseWriter, r *http.Request) {
 	userID := httpx.UserID(r.Context())
 	var body CreateRequest
-	if err := httpx.Decode(w, r, &body); err != nil {
+	if err := httpx.DecodeWithLimit(w, r, &body, maxMonitorJSONBytes); err != nil {
 		httpx.WriteError(w, http.StatusBadRequest, "invalid_request", "Expected URL and interval_seconds")
 		return
 	}
@@ -128,7 +132,7 @@ func (h *Handler) create(w http.ResponseWriter, r *http.Request) {
 // @Security BearerAuth
 // @Param Origin header string true "An origin configured in ALLOWED_ORIGINS" example(http://localhost:3000)
 // @Param id path int64 true "Positive monitor ID" minimum(1)
-// @Param monitor body UpdateRequest true "At least one non-null field: an HTTP(S) URL without credentials or fragment, or a positive integer interval in seconds"
+// @Param monitor body UpdateRequest true "At least one non-null field: an HTTP(S) URL up to 4096 bytes after trimming, without credentials or fragment, or a positive integer interval in seconds"
 // @Success 200 {object} Monitor
 // @Failure 400 {object} httpx.ErrorResponse "Invalid request or parameters"
 // @Failure 401 {object} httpx.ErrorResponse "Invalid credentials or token"
@@ -139,7 +143,7 @@ func (h *Handler) create(w http.ResponseWriter, r *http.Request) {
 // @Router /api/monitors/{id} [patch]
 func (h *Handler) update(w http.ResponseWriter, r *http.Request, id uint64) {
 	var body UpdateRequest
-	if err := httpx.Decode(w, r, &body); err != nil {
+	if err := httpx.DecodeWithLimit(w, r, &body, maxMonitorJSONBytes); err != nil {
 		httpx.WriteError(w, http.StatusBadRequest, "invalid_request", "Expected URL or interval_seconds")
 		return
 	}
@@ -202,7 +206,11 @@ func optionalField[T string | int](raw json.RawMessage) (*T, error) {
 func (h *Handler) fail(w http.ResponseWriter, err error) {
 	switch {
 	case errors.Is(err, ErrInvalidURL):
-		httpx.WriteError(w, http.StatusBadRequest, "invalid_url", "Use an HTTP or HTTPS URL up to 2048 bytes, without credentials or fragment")
+		message := fmt.Sprintf(
+			"Use an HTTP or HTTPS URL up to %d bytes, without credentials or fragment",
+			maxMonitorURLLength,
+		)
+		httpx.WriteError(w, http.StatusBadRequest, "invalid_url", message)
 	case errors.Is(err, ErrInvalidInterval):
 		httpx.WriteError(w, http.StatusBadRequest, "invalid_interval", "Use a whole number of seconds from 1 to 2147483647")
 	case errors.Is(err, ErrInvalidCursor):

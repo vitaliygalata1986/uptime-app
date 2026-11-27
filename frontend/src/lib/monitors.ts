@@ -12,6 +12,7 @@ export interface Monitor {
 
 // Keep the frontend limit aligned with the API's PostgreSQL INTEGER interval column.
 export const MAX_INTERVAL_SECONDS = 2147483647;
+export const MAX_MONITOR_URL_LENGTH = 4096;
 
 export interface MonitorPage {
   monitors: Monitor[];
@@ -57,7 +58,7 @@ export function intervalUnit(seconds: number): number {
 /** Maps monitor API failures to Russian UI text with a fallback for unknown errors. */
 export function monitorErrorMessage(error: unknown): string {
   if (error instanceof ApiError) {
-    if (error.code === "invalid_url") return "Введите полный URL с http:// или https://, без логина, пароля и фрагмента (#), длиной до 2048 байт.";
+    if (error.code === "invalid_url") return `Введите полный URL с http:// или https://, без логина, пароля и фрагмента (#), длиной до ${MAX_MONITOR_URL_LENGTH} байт.`;
     if (error.code === "invalid_interval") return "Задайте целый интервал от 1 до 2 147 483 647 секунд.";
     if (error.code === "monitor_limit") return "Достигнут лимит: в аккаунте можно создать до 100 точек мониторинга.";
     if (error.code === "monitor_not_found") return "Сайт больше недоступен. Обновите страницу, чтобы загрузить список.";
